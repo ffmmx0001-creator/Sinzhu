@@ -320,3 +320,5 @@ app.add_handler(CallbackQueryHandler(shop_view, pattern="^sv_"))
 app.add_handler(CallbackQueryHandler(shop_back, pattern="^shopback$"))
 app.add_handler(CallbackQueryHandler(buy_item, pattern="^buy_"))
 
+print("Bot chal raha hai...")
+app.run_polling()
