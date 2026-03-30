@@ -255,9 +255,9 @@ async def start_game(cid, message, context):
         if p in users: users[p]["games"] += 1
         try:
             if p == spy:
-                await context.bot.send_message(p, f"🕵️ *TUM SPY HO!*\n\nTumhara word: *{spy_word}*\n\nPakde mat jana!", parse_mode="Markdown")
+                await context.bot.send_message(p, f"🦋*\n\nTumhara word: *{spy_word}*\n\nPakde mat jana!", parse_mode="Markdown")
             else:
-                await context.bot.send_message(p, f"👤 *Tum Villager ho!*\n\nTumhara word: *{word}*\n\nSpy dhundho!", parse_mode="Markdown")
+                await context.bot.send_message(p, f"🦋*\n\nTumhara word: *{word}*\n\nSpy dhundho!", parse_mode="Markdown")
         except: pass
     await message.reply_text("🎯 *Game shuru ho gaya!*\n\nSab baat karo, spy dhundho.\nVote: /vote user_id", parse_mode="Markdown")
 
