@@ -30,21 +30,89 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     u = update.effective_user
     d = get_user(u.id, u.first_name)
     d["name"] = u.first_name
-    await update.message.reply_text(
-        f"🌟 *Welcome {u.first_name}!*\n\n"
-        "🀄 /room 4 — Game room banao\n"
-        "🎴 /profile — Profile dekho\n"
-        "🍄 /rank — Rank check karo\n"
-        "💸 /daily — Daily coins lo\n"
-        "💰 /weekly — Weekly gold lo\n"
-        "🏪 /shop — PFP kharido\n"
-        "🌍 /top — Top 10 Villagers\n"
-        "❄️ /topgroups — Top 10 Groups\n\n"
-        "👑 *Admin:*\n"
-        "/upload <title> <price> — Photo ko reply karo\n"
-        "/dpfp <id> — Item delete karo",
-        parse_mode="Markdown"
+
+    mention = f"[{u.first_name}](tg://user?id={u.id})"
+
+    caption = (
+        f"😋 Hɪᴇᴇᴇᴇᴇ {mention}\n"
+        f"😉 Yᴏᴜ'ʀᴇ Tᴀʟᴋɪɴɢ Tᴏ\n"
+        f"Swᥱᥱn Spᥡ A Cᴜᴛɪᴇ Spy\n\n"
+        f"💕 Cʜᴏᴏsᴇ Aɴ Oᴘᴛɪᴏɴ Bᴇʟᴏᴡ :"
     )
+
+    buttons = [
+        [
+            InlineKeyboardButton("🀄 GROUP", url="https://t.me/+ro9WnBB5U2kwMDJl"),
+            InlineKeyboardButton("⚽ OWNER", url="https://t.me/OwnerSween"),
+        ],
+        [
+            InlineKeyboardButton("🦋 CHANNEL", url="https://t.me/SweenSpy"),
+            InlineKeyboardButton("💖 GAME", callback_data="game_info"),
+        ],
+        [
+            InlineKeyboardButton("💖 ᴋɪᴅɴᴀᴘ ᴋᴀʀʟᴏ 💫", url="https://t.me/SweenSpyBoT?start=_tgr_SAH_2gg5ZTc9"),
+        ],
+    ]
+
+    photo_url = "https://files.catbox.moe/iudw99.jpg"
+
+    try:
+        await context.bot.send_photo(
+            chat_id=update.effective_chat.id,
+            photo=photo_url,
+            caption=caption,
+            reply_markup=InlineKeyboardMarkup(buttons),
+            parse_mode="Markdown"
+        )
+    except:
+        await update.message.reply_text(
+            caption,
+            reply_markup=InlineKeyboardMarkup(buttons),
+            parse_mode="Markdown"
+        ) 
+
+async def game_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    text = (
+        "🎮 *SPY GAME — RULES & COMMANDS*\n\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
+        "📖 *Game Kaise Khele:*\n"
+        "1️⃣ Sabse pehle har player bot ko private mein /start kare\n"
+        "2️⃣ Group mein /room 4 likhkar room banao (4-8 players)\n"
+        "3️⃣ Sab Join Game button dabao\n"
+        "4️⃣ Room full hone par bot har player ko DM mein word bhejega\n"
+        "5️⃣ Ek player SPY hoga -- uska word alag hoga\n"
+        "6️⃣ Sab apas mein baat karo aur spy dhundho\n"
+        "7️⃣ Vote karke spy ko pakdo!\n\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
+        "⚔️ *Game Commands:*\n"
+        "🀄 `/room 4` — Room banao (4-8 players)\n"
+        "🗳 `/vote <user_id>` — Kisi ko vote karo\n"
+        "🛑 `/endgame` — Game force band karo\n\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
+        "👤 *Player Commands:*\n"
+        "🎴 `/profile` — Apna profile dekho\n"
+        "🍄 `/rank` — Apna rank check karo\n"
+        "💸 `/daily` — Daily coins lo\n"
+        "💰 `/weekly` — Weekly gold lo\n"
+        "🏪 `/shop` — PFP shop\n"
+        "🌍 `/top` — Top 10 Villagers\n"
+        "❄️ `/topgroups` — Top 10 Groups\n\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
+        "🏆 *Jeetnay Par:*\n"
+        "✅ Villager win = +100 coins\n"
+        "🕵️ Spy win = +200 coins\n"
+        "❌ Spy pakda = -50 coins\n\n"
+        "💡 *Tip:* Spy ko dhundne ke liye user ka ID chahiye hoga.\n"
+        "ID pane ke liye @userinfobot ko /start bhejo!"
+    )
+
+    await query.message.reply_text(text, parse_mode="Markdown")
+Handlers mein yeh ek line add karo (baaki handlers ke saath):
+
+app.add_handler(CallbackQueryHandler(game_info, pattern="^game_info$"))
 
 # /profile - Telegram profile photo show karo
 async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -301,7 +369,7 @@ async def start_game(cid, message, context):
             if p == spy: await context.bot.send_message(p, f"💖*Tumhara!*\nWord: *{spy_word}*", parse_mode="Markdown")
             else: await context.bot.send_message(p, f"💖 *Tumhara!*\nWord: *{word}*", parse_mode="Markdown")
         except: pass
-    await message.reply_text("🎯 *Game shuru!*\nVote: /vote user_id", parse_mode="Markdown")
+    await message.reply_text("⚽ *Game shuru!*\nVote: /vote user_id", parse_mode="Markdown")
 
 async def vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     rid = update.effective_chat.id; game = rooms.get(rid)
@@ -356,7 +424,46 @@ app.add_handler(CommandHandler("dpfp", delete_pfp))
 app.add_handler(CallbackQueryHandler(join, pattern="^join$"))
 app.add_handler(CallbackQueryHandler(shop_nav, pattern="^shop_\\d+$"))
 app.add_handler(CallbackQueryHandler(buy_item, pattern="^buy_\\d+$"))
+app.add_handler(CallbackQueryHandler
 
 print("Bot chal raha hai...")
 app.run_polling()
-        
+        async def end_game(update, context):
+    rid = update.effective_chat.id; game = rooms.get(rid)
+    if not game: return
+    vc = {}
+    for v in game["votes"].values(): vc[v] = vc.get(v, 0) + 1
+    accused = max(vc, key=vc.get); spy = game["spy"]
+    sn = game["player_names"].get(spy, str(spy))
+    if accused == spy:
+        result = f"🎉 *Spy pakda! Villagers jeete!*\nSpy: {sn} | Word: {game['word']}"
+        for p in game["players"]:
+            if p != spy and p in users: users[p]["wins"] += 1; users[p]["coins"] += 100
+        if spy in users: users[spy]["coins"] = max(0, users[spy]["coins"] - 50)
+    else:
+        result = f"😈 *Spy bach gaya!*\nSpy: {sn} | Word: {game['word']}"
+        if spy in users: users[spy]["spy_wins"] += 1; users[spy]["wins"] += 1; users[spy]["coins"] += 200
+        if rid in groups: groups[rid]["wins"] += 1
+    await update.message.reply_text(result, parse_mode="Markdown")
+    rooms.pop(rid, None)
+
+app = ApplicationBuilder().token(TOKEN).build()
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("room", room_cmd))
+app.add_handler(CommandHandler("vote", vote))
+app.add_handler(CommandHandler("endgame", endgame))
+app.add_handler(CommandHandler("profile", profile))
+app.add_handler(CommandHandler("rank", rank))
+app.add_handler(CommandHandler("daily", daily))
+app.add_handler(CommandHandler("weekly", weekly))
+app.add_handler(CommandHandler("shop", shop))
+app.add_handler(CommandHandler("top", top))
+app.add_handler(CommandHandler("topgroups", topgroups))
+app.add_handler(CommandHandler("upload", upload_pfp))
+app.add_handler(CommandHandler("dpfp", delete_pfp))
+app.add_handler(CallbackQueryHandler(join, pattern="^join$"))
+app.add_handler(CallbackQueryHandler(shop_nav, pattern="^shop_\\d+$"))
+app.add_handler(CallbackQueryHandler(buy_item, pattern="^buy_\\d+$"))
+
+print("Bot chal raha hai...")
+app.run_polling()        
