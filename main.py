@@ -551,14 +551,13 @@ async def wpass(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ══════════════════════════════════════════════════════
 #  /shop
 # ══════════════════════════════════════════════════════
- async def shop(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def shop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     av = [(wid, info) for wid, info in shop_list.items() if info["qty"] > 0]
     if not av:
         await update.message.reply_text("🛍️ Shop khaali hai!")
         return
     await _shop_send(update.effective_chat.id, uid, 0, context)
-
 
 async def _shop_send(chat_id, uid, page, context):
     av = [(wid, info) for wid, info in shop_list.items() if info["qty"] > 0]
