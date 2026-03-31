@@ -548,8 +548,8 @@ async def harem_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     rows = []
     if nav:
         rows.append(nav)
-    rows.append([shareeKeyboardMarkup(buttons)
-    try:
+    rows.append([share_btn])
+    markup = InlineKeyboardMarkup(rows)
         await context.bot.send_photo(
             chat_id=update.effective_chat.id,
             photo=bot_settings["photo"],
