@@ -546,19 +546,20 @@ async def harem_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     rows = []
-        if nav:
-            rows.append(nav)
-        rows.append([share_btn])
-        markup = InlineKeyboardMarkup(rows)
-        try:
-            if w.get("photo_id"):
-                await q.message.reply_photo(
-                    w["photo_id"], caption=cap, reply_markup=markup, parse_mode="Markdown"
-                )
-            else:
-                await q.message.reply_text(cap, reply_markup=markup, parse_mode="Markdown")
-        except Exception:
-            pass
+    if nav:
+        rows.append(nav)
+    rows.append([share_btn])
+    markup = InlineKeyboardMarkup(rows)
+
+    try:
+        if w.get("photo_id"):
+            await q.message.reply_photo(
+                w["photo_id"], caption=cap, reply_markup=markup, parse_mode="Markdown"
+            )
+        else:
+            await q.message.reply_text(cap, reply_markup=markup, parse_mode="Markdown")
+    except Exception:
+        pass
 # ══════════════════════════════════════════════════════
 #  GAME INFO CALLBACK
 # ══════════════════════════════════════════════════════
