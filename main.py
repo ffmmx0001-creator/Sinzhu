@@ -259,7 +259,7 @@ async def game_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🌟 God Summon › ✨ Goddess › 🔮 Limited\n"
         "💎 Premium › 🎐 Special › 💮 Exclusive\n"
         "🪽 Celestial › 🟡 Legendary › 🟠 Rare\n"
-        "🔵 Medium › 🟢 Common"
+        "🔵 Medium › 🟢. Common"
     )
     await q.message.reply_text(text, parse_mode="Markdown")
 
