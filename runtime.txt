@@ -1,1 +1,8 @@
-python311
+[phases.setup]
+nixPkgs = ["python3"]
+
+[phases.install]
+cmds = ["pip install python-telegram-bot==20.7"]
+
+[start]
+cmd = "python main.py"
