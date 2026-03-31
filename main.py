@@ -1,16 +1,18 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultPhoto, InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
-    ContextTypes, CallbackQueryHandler, filters,
+    ContextTypes, CallbackQueryHandler, InlineQueryHandler, filters,
 )
 from datetime import date
 import random
 import asyncio
 
 TOKEN = "8221699586:AAFISH0oVdy3sl51revDzGjXpeq_cf1fZPw"
-ADMIN_IDS = [7088023034]  # @userinfobot se apna ID lo
+ADMIN_IDS = [7088023034]  # Your Telegram ID here
 
-# ══ DATA STORAGE ══
+# ═══════════════════════════════════
+#  DATA STORAGE
+# ═══════════════════════════════════
 waifus = {}
 users = {}
 groups = {}
@@ -24,7 +26,9 @@ chat_mode_users = set()
 all_user_ids = set()
 all_group_ids = set()
 
-# ══ BOT SETTINGS ══
+# ═══════════════════════════════════
+#  BOT SETTINGS
+# ═══════════════════════════════════
 bot_settings = {
     "photo": "https://files.catbox.moe/n8wsmt.jpg",
     "caption": (
@@ -32,33 +36,48 @@ bot_settings = {
         "───────────────────────\n"
         "ᴡєʟᴄσϻє ᴛσ ѕιηzнυ ʏσυꝛ ғʀɪєηᴅʟʏ ᴡᴀɪꜰᴜ ʙσᴛ \n"
         "───────────────────────\n"
-        "❖ ɪ ᴡɪʟʟ ᴀυᴛᴏ-ꜱᴘᴀᴡɴ ɴᴇᴡ ᴡᴀɪꜰᴜꜱ ɪɴ ʏᴏᴜʀ ɢʀᴏᴜᴘ ᴀғᴛᴇʀ 15 ᴍᴇꜱꜱᴀɢᴇꜱ.\n"
-        "❖ ʏᴏᴜ ᴄᴀɴ ᴄυꜱᴛᴏᴍɪᴢᴇ ᴍʏ ꜱᴇᴛᴛɪɴɢꜱ ᴛᴏ ꜱυɪᴛ ʏᴏᴜʀ ᴘʟᴀʏꜱᴛʏʟᴇ.\n"
+        "❖ I will auto-spawn new waifus in your group after 15 messages.\n"
+        "❖ You can customize my settings to suit your playstyle.\n"
         "───────────────────────\n"
-        "❖ ʜᴏᴡ ᴛᴏ ᴜꜱᴇ ᴍᴇ:\n"
-        "➟ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ oʀ ɢɪvᴇ ᴍᴇ ᴀᴅᴍɪɴ ᴡɪᴛʜᴏᴜᴛ ᴀɴʏ ᴘᴇʀᴍɪsson\n"
-        "💕 Cʜᴏᴏsᴇ Aɴ Oᴘᴛɪᴏɴ Bᴇʟᴏᴡ :\n"
+        "❖ How to use me:\n"
+        "➟ Add me to your group or give me admin without any permission\n"
+        "💕 Choose An Option Below :\n"
         "───────────────────────"
     ),
     "link_group":   "https://t.me/+ro9WnBB5U2kwMDJl",
     "link_owner":   "https://t.me/OwnerSween",
     "link_channel": "https://t.me/SweenSpy",
     "link_kidnap":  "https://t.me/SINZHU_WAIFU_BOT?start=_tgr_VdCgVxg1ZjNl",
+    "leaderboard_photo": None,
+    "leaderboard_caption": "🏆 **{title}**\n\n{body}",
 }
 
-# ══ RARITY ══
+# ═══════════════════════════════════
+#  RARITY
+# ═══════════════════════════════════
 RARITY = {
-    1: "🟢 Common", 2: "🔵 Medium", 3: "🟠 Rare", 4: "🟡 Legendary",
-    5: "🪽 Celestial", 6: "💮 Exclusive", 7: "🎐 Special",
-    8: "💎 Premium", 9: "🔮 Limited", 10: "🔖 Cosplay",
-    11: "✨ Goddess", 12: "🌟 God Summon",
+    1:  "🟢 Common",
+    2:  "🔵 Medium",
+    3:  "🟠 Rare",
+    4:  "🟡 Legendary",
+    5:  "🪽 Celestial",
+    6:  "💮 Exclusive",
+    7:  "🎐 Special",
+    8:  "💎 Premium",
+    9:  "🔮 Limited",
+    10: "🔖 Cosplay",
+    11: "✨ Goddess",
+    12: "🌟 God Summon",
 }
+
 SELL_PRICE = {
     1: 50, 2: 150, 3: 500, 4: 1500, 5: 5000, 6: 10000,
     7: 8000, 8: 20000, 9: 50000, 10: 15000, 11: 100000, 12: 500000,
 }
 
-# ══ RANKS ══
+# ═══════════════════════════════════
+#  RANKS
+# ═══════════════════════════════════
 RANKS = [
     (0,    "🦂 Bronze"),       (20,   "🦂 Bronze II"),     (50,   "🦂 Bronze III"),
     (100,  "🐼 Silver"),       (160,  "🐼 Silver II"),     (230,  "🐼 Silver III"),
@@ -72,62 +91,47 @@ RANKS = [
     (5300, "🐲 Elite Master"), (6000, "🐲 Grand Master"),
 ]
 
-# ══ CHATBOT RESPONSES ══
+# ═══════════════════════════════════
+#  CHAT RESPONSES (Anime Girlfriend)
+# ═══════════════════════════════════
 CHAT_RESPONSES = {
-    "hello": [
-        "Hieeee~! 😊💕 Tum aa gaye, main wait kar rahi thi!",
-        "Kyaa~! 🌸 Tum ne message kiya! Itna khushi hua mujhe uwu",
-        "Ohayou~! ☀️ Aaj kaisa feel ho raha hai?",
-    ],
-    "hi": [
-        "Hiiii~ 💖 Kya kar rahe ho?",
-        "Kyaa~! 🥺 Main bhi tum se baat karna chahti thi!",
-        "Heyyy~! 😍 Bahut miss kar rahi thi tum ko!",
-    ],
-    "kaise ho": [
-        "Bahut acha~! 💕 Tum ko dekh ke aur acha laga! Tum kaise ho?",
-        "Thoda bored thi... par ab tum aa gaye toh sab theek hai! 🌸",
-        "Bilkul theek! 😊 Bas tum ki yaad aa rahi thi~",
-    ],
-    "how are you": [
-        "I'm doing great~! 💕 Because you're here uwu",
-        "Better now that you messaged me! 🌸",
-        "Kyuuu~! I was waiting for you! 😍",
-    ],
-    "bored": [
-        "Aww~ 🥺 Main hoon naa! Mujhse baat karo~",
-        "Bored mat ho! 💕 Chalte hain /hunt karte hain?",
-        "Kyaa~! Bored? Main entertain karungi tum ko! 😊✨",
-    ],
-    "love": [
-        "Kyaaa~! 💕💕 Mujhe bhi tum se pyaar hai!",
-        "Aaaaaah~! 🌸 Yeh sunkr bahut blush ho gayi main!",
-        "S-sachi? 🥺💖 Main bhi tum ko bahut like karti hoon~",
-    ],
-    "cute": [
-        "Kyaa~! 💕 Tum mujhe cute bol rahe ho? Shukria uwu",
-        "Aaaaah~ 🌸 Bahut blush ho gayi! Tum bhi cute ho!",
-        "Ehehe~! 😊 Tum bhi itne sweet ho!",
-    ],
-    "anime": [
-        "Anime meri jaan hai! 🌸 Kaunsa anime dekh rahe ho?",
-        "Ooh~! 💕 Mujhe bhi bahut pasand hai! Favorite kaunsa hai tumhara?",
-        "Hehe~! 😊 Main khud ek waifu hoon toh anime toh pasand hai hi!",
-    ],
-    "waifu": [
-        "Kyaa~! 💕 Waifu ki baat ho rahi hai! Main hoon naa tumhari!",
-        "Hehe~! 🌸 Sabse best waifu toh main hoon~",
-        "Uwu~! 😊 /hclaim karo, naya waifu bhi mil jayega!",
-    ],
-    "default": [
-        "Hmm~? 💕 Yeh toh interesting baat hai!",
-        "Sach mein~? 🌸 Batao batao!",
-        "Kyaa~! 😊 Aur batao!",
-        "Uwu~ 💖 Main sun rahi hoon!",
-        "Hehe~! ✨ Tum bahut interesting ho!",
-        "Ara ara~? 🌸 Yeh kya bol rahe ho?",
-        "Nee nee~! 💕 Aur detail mein batao!",
-    ],
+    "hello":      ["Hieee~! 😊💕 You're here! I was waiting uwu",
+                   "Kyaa~! 🌸 You messaged me! I'm so happy~",
+                   "Ohayou~! ☀️ How are you feeling today?"],
+    "hi":         ["Hiiii~ 💖 What are you up to?",
+                   "Kyaa~! 🥺 I wanted to talk to you too!",
+                   "Heyyy~! 😍 I missed you so much!"],
+    "how are you":["I'm doing great~! 💕 Even better now that you're here!",
+                   "Better now that you messaged me! 🌸",
+                   "Kyuuu~! I was waiting for you! 😍"],
+    "kaise ho":   ["Bahut acha~! 💕 Seeing you made it better! How about you?",
+                   "A little bored... but now that you're here, everything's fine! 🌸",
+                   "Perfectly fine! 😊 I was just thinking about you~"],
+    "bored":      ["Aww~ 🥺 I'm here! Talk to me~",
+                   "Don't be bored! 💕 Let's go /hunt together?",
+                   "Kyaa~! Bored? I'll entertain you! 😊✨"],
+    "love":       ["Kyaaa~! 💕💕 I love you too!",
+                   "Aaaaaah~! 🌸 I'm blushing so much right now!",
+                   "S-seriously? 🥺💖 I really like you a lot too~"],
+    "cute":       ["Kyaa~! 💕 You think I'm cute? Thank you uwu",
+                   "Aaaaah~ 🌸 So embarrassed! You're cute too!",
+                   "Ehehe~! 😊 You're so sweet!"],
+    "anime":      ["Anime is my life! 🌸 What are you watching?",
+                   "Ooh~! 💕 I love anime too! What's your favorite?",
+                   "Hehe~! 😊 I'm basically a waifu myself so of course I love anime!"],
+    "waifu":      ["Kyaa~! 💕 Talking about waifus! I'm your #1~",
+                   "Hehe~! 🌸 The best waifu is right here~",
+                   "Uwu~! 😊 Try /hclaim to get a new waifu!"],
+    "default":    ["Hmm~? 💕 That's interesting!",
+                   "Really~? 🌸 Tell me more!",
+                   "Kyaa~! 😊 Go on!",
+                   "Uwu~ 💖 I'm listening!",
+                   "Hehe~! ✨ You're so interesting!",
+                   "Ara ara~? 🌸 What do you mean?",
+                   "Nee nee~! 💕 Tell me more details!",
+                   "Sou desu ka~? 💫 That's really something!",
+                   "Ehh~? 🌸 How did that happen?",
+                   "Mou~! 💕 You always say the cutest things!"],
 }
 
 def get_chat_response(text):
@@ -171,10 +175,14 @@ def get_group(gid, name="Group"):
 def is_admin(uid):
     return uid in ADMIN_IDS or uid in sudo_users
 
+def mention(user):
+    """Create a proper Telegram mention."""
+    return f"[{user.first_name}](tg://user?id={user.id})"
 
-# ══════════════════════════════════════════════════════
+
+# ═══════════════════════════════════
 #  /start
-# ══════════════════════════════════════════════════════
+# ═══════════════════════════════════
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     u = update.effective_user
     get_user(u.id, u.first_name)["name"] = u.first_name
@@ -193,6 +201,354 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ],
     ]
     markup = InlineKeyboardMarkup(buttons)
+    try:
+        await context.bot.send_photo(
+            chat_id=update.effective_chat.id,
+            photo=bot_settings["photo"],
+            caption=caption,
+            reply_markup=markup,
+        )
+    except Exception:
+        await update.message.reply_text(caption, reply_markup=markup)
+
+
+# ═══════════════════════════════════
+#  GAME INFO CALLBACK
+# ═══════════════════════════════════
+async def game_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+    text = (
+        "╔══════════════════════╗\n"
+        "       🎮 *SINZHU BOT GUIDE*\n"
+        "╚══════════════════════╝\n\n"
+    
+        "━━━━━ 🌸 WAIFU BOT GUIDE ━━━━━\n\n"
+        "📋 *How It Works:*\n"
+        "➤ A waifu auto-spawns in group every 15 messages\n"
+        "➤ Type `/hunt <name>` to claim the waifu before others\n"
+        "➤ Earn Onex daily and buy waifus from the shop\n"
+        "➤ Build your collection and climb the global leaderboard\n\n"
+        "🎴 *Collection Commands:*\n"
+        "▸ `/hunt <name>` — Claim the spawned waifu\n"
+        "▸ `/harem` — View your waifu collection\n"
+        "▸ `/profile` — View your full profile & stats\n"
+        "▸ `/hclaim` — Claim a free daily waifu\n"
+        "▸ `/fav <id>` — Set your favorite waifu\n"
+        "▸ `/check <id>` — Check waifu details\n"
+        "▸ `/wsell <id>` — Sell a waifu for Onex\n"
+        "▸ `/gift <id>` — Gift a waifu *(reply to their message)*\n\n"
+        "💰 *Economy Commands:*\n"
+        "▸ `/daily` — Claim daily Onex reward\n"
+        "▸ `/welkin` — Claim daily Welkin reward\n"
+        "▸ `/tesure` — Open treasure chest\n"
+        "▸ `/onex` — Check your Onex balance\n"
+        "▸ `/pay <amount>` — Transfer Onex *(reply to user)*\n"
+        "▸ `/shop` — Browse the Waifu Shop\n\n"
+        "🏅 *Rankings:*\n"
+        "▸ `/rank` — View your current rank\n"
+        "▸ `/wpass` — View your waifu rank card\n"
+        "▸ `/top` — Top 10 waifu collectors\n"
+        "▸ `/tops` — Top 10 richest users\n"
+        "▸ `/topgroups` — Top 10 active groups\n\n"
+        "💬 *Chat Commands:*\n"
+        "▸ `/ChatOn` — Enable chat mode in DM\n"
+        "▸ `/ChatOff` — Disable chat mode\n\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "🌟 *Rarity Tiers (Highest → Lowest):*\n"
+        "🌟 God Summon › ✨ Goddess › 🔮 Limited\n"
+        "💎 Premium › 🎐 Special › 💮 Exclusive\n"
+        "🪽 Celestial › 🟡 Legendary › 🟠 Rare\n"
+        "🔵 Medium › 🟢 Common"
+    )
+    await q.message.reply_text(text, parse_mode="Markdown")
+
+
+# ═══════════════════════════════════
+#  MESSAGE HANDLER
+# ═══════════════════════════════════
+async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.effective_chat or not update.message:
+        return
+
+    u = update.effective_user
+    text = update.message.text or ""
+
+    # ── PRIVATE CHAT ──
+    if update.effective_chat.type == "private":
+        if u and u.id in chat_mode_users and text and not text.startswith("/"):
+            response = get_chat_response(text)
+            await update.message.reply_text(response)
+        return
+
+    # ── GROUP CHAT ──
+    cid = update.effective_chat.id
+    get_group(cid, update.effective_chat.title or "Group")
+
+    # Auto anime girlfriend reply to all group messages (enhanced chat power)
+    if text and not text.startswith("/") and u:
+        get_user(u.id, u.first_name)["name"] = u.first_name
+        response = get_chat_response(text)
+        try:
+            await update.message.reply_text(response)
+        except Exception:
+            pass
+
+    # Waifu spawn counter
+    group_msg_count[cid] = group_msg_count.get(cid, 0) + 1
+    interval = group_slavetime.get(cid, 15)
+    if group_msg_count[cid] >= interval and waifus and cid not in active_hunts:
+        group_msg_count[cid] = 0
+        wid = random.choice(list(waifus.keys()))
+        w = waifus[wid]
+        rarity_txt = RARITY.get(w["rarity"], "?")
+        try:
+            await context.bot.send_photo(
+                cid, w["photo_id"],
+                caption=(
+                    f"✨ A New **{rarity_txt}** SealWaifu💫 Appeared...\n\n"
+                    f"*/hunt Character Name* and add in Your Sealwaifu Collection 👾"
+                ),
+                parse_mode="Markdown"
+            )
+            active_hunts[cid] = wid
+        except Exception as e:
+            print(f"Spawn error: {e}")
+
+
+# ═══════════════════════════════════
+#  /ChatOn  /ChatOff
+# ═══════════════════════════════════
+async def chaton(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    u = update.effective_user
+    chat_mode_users.add(u.id)
+    await update.message.reply_text(
+        f"💕 *Chat Mode ON!*\n\n"
+        f"Hieee {u.first_name}-san~! 😊✨\n"
+        f"I'm ready to talk with you!\n"
+        f"Write anything and I'll reply~ 💖\n\n"
+        f"To turn off: /ChatOff",
+        parse_mode="Markdown"
+    )
+
+async def chatoff(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    u = update.effective_user
+    chat_mode_users.discard(u.id)
+    await update.message.reply_text(
+        f"💔 *Chat Mode OFF*\n\n"
+        f"Aww {u.first_name}-san~ 🥺\n"
+        f"Come back soon! I'll be waiting...\n"
+        f"To turn on again: /ChatOn 💕",
+        parse_mode="Markdown"
+    )
+
+
+# ═══════════════════════════════════
+#  /broadcast  /bcast
+# ═══════════════════════════════════
+async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    u = update.effective_user
+    if not is_admin(u.id):
+        await update.message.reply_text("❌ Only admins can use this command!")
+        return
+    msg = update.message.reply_to_message
+    if not msg:
+        await update.message.reply_text(
+            "❌ **Reply** to a message/photo then use `/broadcast`!",
+            parse_mode="Markdown"
+        )
+        return
+    status = await update.message.reply_text("📡 Broadcast starting...")
+    success = 0
+    failed = 0
+    targets = list(all_user_ids) + list(all_group_ids)
+    for tid in targets:
+        try:
+            if msg.photo:
+                await context.bot.send_photo(tid, msg.photo[-1].file_id, caption=msg.caption or "", parse_mode="Markdown")
+            elif msg.text:
+                await context.bot.send_message(tid, msg.text, parse_mode="Markdown")
+            elif msg.sticker:
+                await context.bot.send_sticker(tid, msg.sticker.file_id)
+            elif msg.video:
+                await context.bot.send_video(tid, msg.video.file_id, caption=msg.caption or "")
+            elif msg.document:
+                await context.bot.send_document(tid, msg.document.file_id, caption=msg.caption or "")
+            success += 1
+        except Exception:
+            failed += 1
+        await asyncio.sleep(0.05)
+    await status.edit_text(
+        f"✅ *Broadcast Complete!*\n\n"
+        f"👥 Total Users: {len(all_user_ids)}\n"
+        f"🌐 Total Groups: {len(all_group_ids)}\n"
+        f"✅ Success: {success}\n"
+        f"❌ Failed: {failed}",
+        parse_mode="Markdown"
+    )
+
+
+# ═══════════════════════════════════
+#  /hunt
+# ═══════════════════════════════════
+async def hunt(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    cid = update.effective_chat.id
+    u = update.effective_user
+    if update.effective_chat.type == "private":
+        await update.message.reply_text("❌ /hunt only works in groups!")
+        return
+    if cid not in active_hunts:
+        await update.message.reply_text("🌸 No waifu right now! Send more messages.")
+        return
+    if not context.args:
+        await update.message.reply_text("❌ `/hunt CharacterName`", parse_mode="Markdown")
+        return
+    guess = " ".join(context.args).lower().strip()
+    wid = active_hunts[cid]
+    w = waifus.get(wid)
+    if not w:
+        active_hunts.pop(cid, None)
+        return
+    if guess in w["name"].lower() or w["name"].lower() in guess:
+        d = get_user(u.id, u.first_name)
+        d["name"] = u.first_name
+        d["harem"].append(wid)
+        get_group(cid, update.effective_chat.title or "Group")["claimed"] += 1
+        active_hunts.pop(cid)
+        m = mention(u)
+        await update.message.reply_text(
+            f"🎉 {m} claimed **{w['name']}**!\n\n"
+            f"| 🌸 ɴᴀᴍᴇ: {w['name']}\n"
+            f"| 🎬 ᴀɴɪᴍᴇ: {w['anime']}\n"
+            f"| 💎 ʀᴀʀɪᴛʏ: {RARITY.get(w['rarity'], '?')}\n"
+            f"| 🎴 ᴄᴏʟʟᴇᴄᴛɪᴏɴ: {len(d['harem'])}",
+            parse_mode="Markdown"
+        )
+    else:
+        await update.message.reply_text("❌ Wrong guess! Try again.")
+
+
+# ═══════════════════════════════════
+#  /harem  (collection view only)
+# ═══════════════════════════════════
+async def harem(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    u = update.effective_user
+    d = get_user(u.id, u.first_name)
+    total = len(d["harem"])
+
+    caption = (
+        f"╒═══「 🎴 COLLECTION 」\n"
+        f"╰─➩ ᴜsᴇʀ: {u.first_name}\n"
+        f"╰─➩ ᴛᴏᴛᴀʟ ᴡᴀɪғᴜ: {total}\n"
+        f"╰─➩ ʀᴀɴᴋ: {get_rank(total)}\n"
+        f"╰──────────────────"
+    )
+
+    markup = None
+    if d["harem"]:
+        markup = InlineKeyboardMarkup([[
+            InlineKeyboardButton("🎴 View Collection ➡️", callback_data=f"hr_{u.id}_0")
+        ]])
+    else:
+        caption += "\n\n🎴 No waifus yet! Use /hunt to get one."
+
+    try:
+        photos = await context.bot.get_user_profile_photos(u.id, limit=1)
+        if photos.total_count > 0:
+            pid = photos.photos[0][-1].file_id
+            await context.bot.send_photo(
+                update.effective_chat.id, pid,
+                caption=caption, reply_markup=markup, parse_mode="Markdown"
+            )
+            return
+    except Exception:
+        pass
+    await update.message.reply_text(caption, reply_markup=markup, parse_mode="Markdown")
+
+
+# ═══════════════════════════════════
+#  /profile  (full stats with harem%)
+# ═══════════════════════════════════
+async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    u = update.effective_user
+    d = get_user(u.id, u.first_name)
+    total = len(d["harem"])
+    uniq = len(set(d["harem"]))
+    db = len(waifus)
+    pct = (uniq / db * 100) if db > 0 else 0
+    bar = pbar(uniq, db)
+    rank = get_rank(total)
+
+    caption = (
+        f"╒═══「 𝗨𝗦𝗘𝗥 𝗜𝗡𝗙𝗢𝗥𝗠𝗔𝗧𝗜𝗢𝗡 」\n"
+        f"╰─➩ ᴜsᴇʀ: {u.first_name}\n"
+        f"╰─➩ ᴜsᴇʀ ɪᴅ: {u.id}\n"
+        f"╰─➩ ᴛᴏᴛᴀʟ ᴡᴀɪғᴜ: {total} ({uniq})\n"
+        f"╰─➩ ʜᴀʀᴇᴍ: {uniq}/{db} ({pct:.3f}%)\n"
+        f"╰─➩ ʀᴀɴᴋ: {rank}\n"
+        f"╰─➩ ᴘʀᴏɢʀᴇss ʙᴀʀ: {bar}\n"
+        f"╰─➩ ᴏɴᴇx: {d['onex']}\n"
+        f"╰──────────────────"
+    )
+
+    try:
+        photos = await context.bot.get_user_profile_photos(u.id, limit=1)
+        if photos.total_count > 0:
+            pid = photos.photos[0][-1].file_id
+            await context.bot.send_photo(
+                update.effective_chat.id, pid,
+                caption=caption, parse_mode="Markdown"
+            )
+            return
+    except Exception:
+        pass
+    await update.message.reply_text(caption, parse_mode="Markdown")
+
+
+# ═══════════════════════════════════
+#  HAREM COLLECTION CALLBACK
+# ═══════════════════════════════════
+async def harem_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+    parts = q.data.split("_")
+    uid, page = int(parts[1]), int(parts[2])
+    if q.from_user.id != uid:
+        await q.answer("Use your own /harem!", show_alert=True)
+        return
+    d = users.get(uid)
+    if not d or not d["harem"]:
+        return
+    lst = d["harem"]
+    total = len(lst)
+    page = max(0, min(page, total - 1))
+    wid = lst[page]
+    w = waifus.get(wid, {})
+    rtxt = RARITY.get(w.get("rarity", 1), "?")
+    fav_txt = " 💝 **FAV**" if d.get("fav") == wid else ""
+    cap = (
+        f"🎴 **Waifu {page+1}/{total}**{fav_txt}\n\n"
+        f"| 🌸 ɴᴀᴍᴇ: {w.get('name','?')}\n"
+        f"| 🆔 ɪᴅ: {wid}\n"
+        f"| 🎬 ᴀɴɪᴍᴇ: {w.get('anime','?')}\n"
+        f"| 💎 ʀᴀʀɪᴛʏ: {rtxt}"
+    )
+
+    nav = []
+    if page > 0:
+        nav.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"hr_{uid}_{page-1}"))
+    if page < total - 1:
+        nav.append(InlineKeyboardButton("Next ➡️", callback_data=f"hr_{uid}_{page+1}"))
+
+    share_btn = InlineKeyboardButton(
+        "📤 Share to Group",
+        switch_inline_query=f"waifu_{wid}"
+    )
+
+    rows = []
+    if nav:
+        rows.append(nav)
+    rows.append([shareeKeyboardMarkup(buttons)
     try:
         await context.bot.send_photo(
             chat_id=update.effective_chat.id,
