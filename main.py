@@ -1,1609 +1,705 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultPhoto, InlineQueryResultArticle, InputTextMessageContent
-from telegram.ext import (
-    ApplicationBuilder, CommandHandler, MessageHandler,
-    ContextTypes, CallbackQueryHandler, InlineQueryHandler, filters,
-)
-from datetime import date
+import os
 import random
+import math
 import asyncio
-
-TOKEN = "8221699586:AAFISH0oVdy3sl51revDzGjXpeq_cf1fZPw"
-ADMIN_IDS = [7088023034]  # Your Telegram ID here
-
-# ═══════════════════════════════════
-#  DATA STORAGE
-# ═══════════════════════════════════
-waifus = {}
-users = {}
-groups = {}
-shop_list = {}
-sudo_users = set()
-active_hunts = {}
-group_msg_count = {}
-group_slavetime = {}
-next_waifu_id = 1
-chat_mode_users = set()
-all_user_ids = set()
-all_group_ids = set()
-
-# ═══════════════════════════════════
-#  BOT SETTINGS
-# ═══════════════════════════════════
-bot_settings = {
-    "photo": "https://files.catbox.moe/n8wsmt.jpg",
-    "caption": (
-        "Kση'ηɪᴄʜɪᴡᴧ {name}-san\n"
-        "───────────────────────\n"
-        "ᴡєʟᴄσϻє ᴛσ ѕιηzнυ ʏσυꝛ ғʀɪєηᴅʟʏ ᴡᴀɪꜰᴜ ʙσᴛ \n"
-        "───────────────────────\n"
-        "❖ I will auto-spawn new waifus in your group after 15 messages.\n"
-        "❖ You can customize my settings to suit your playstyle.\n"
-        "───────────────────────\n"
-        "❖ How to use me:\n"
-        "➟ Add me to your group or give me admin without any permission\n"
-        "💕 Choose An Option Below :\n"
-        "───────────────────────"
-    ),
-    "link_group":   "https://t.me/+ro9WnBB5U2kwMDJl",
-    "link_owner":   "https://t.me/OwnerSween",
-    "link_channel": "https://t.me/SweenSpy",
-    "link_kidnap":  "https://t.me/SINZHU_WAIFU_BOT?start=_tgr_VdCgVxg1ZjNl",
-    "leaderboard_photo": None,
-    "leaderboard_caption": "🏆 **{title}**\n\n{body}",
-}
-
-# ═══════════════════════════════════
-#  RARITY
-# ═══════════════════════════════════
-RARITY = {
-    1:  "🟢 Common",
-    2:  "🔵 Medium",
-    3:  "🟠 Rare",
-    4:  "🟡 Legendary",
-    5:  "🪽 Celestial",
-    6:  "💮 Exclusive",
-    7:  "🎐 Special",
-    8:  "💎 Premium",
-    9:  "🔮 Limited",
-    10: "🔖 Cosplay",
-    11: "✨ Goddess",
-    12: "🌟 God Summon",
-}
-
-SELL_PRICE = {
-    1: 50, 2: 150, 3: 500, 4: 1500, 5: 5000, 6: 10000,
-    7: 8000, 8: 20000, 9: 50000, 10: 15000, 11: 100000, 12: 500000,
-}
-
-# ═══════════════════════════════════
-#  RANKS
-# ═══════════════════════════════════
-RANKS = [
-    (0,    "🦂 Bronze"),       (20,   "🦂 Bronze II"),     (50,   "🦂 Bronze III"),
-    (100,  "🐼 Silver"),       (160,  "🐼 Silver II"),     (230,  "🐼 Silver III"),
-    (330,  "🐞 Gold"),         (450,  "🐞 Gold II"),       (560,  "🐞 Gold III"),
-    (650,  "🦀 Platinum"),     (780,  "🦀 Platinum II"),   (920,  "🦀 Platinum III"),
-    (1000, "🪼 Diamond"),      (1300, "🪼 Diamond II"),    (1600, "🪼 Diamond III"),
-    (1900, "🪼 Diamond IIII"), (2000, "🪼 Elite Diamond"),
-    (2300, "🐦‍🔥 Heroic"),      (2600, "🐦‍🔥 Heroic II"),    (2900, "🐦‍🔥 Heroic III"),
-    (3300, "🐦‍🔥 Heroic IIII"), (3900, "🐦‍🔥 Elite Heroic"),
-    (4300, "🐲 Master"),       (4600, "🐲 Master II"),     (4900, "🐲 Master III"),
-    (5300, "🐲 Elite Master"), (6000, "🐲 Grand Master"),
-]
-
-# ═══════════════════════════════════
-#  CHAT RESPONSES (Anime Girlfriend)
-# ═══════════════════════════════════
-CHAT_RESPONSES = {
-    "hello":      ["Hieee~! 😊💕 You're here! I was waiting uwu",
-                   "Kyaa~! 🌸 You messaged me! I'm so happy~",
-                   "Ohayou~! ☀️ How are you feeling today?"],
-    "hi":         ["Hiiii~ 💖 What are you up to?",
-                   "Kyaa~! 🥺 I wanted to talk to you too!",
-                   "Heyyy~! 😍 I missed you so much!"],
-    "how are you":["I'm doing great~! 💕 Even better now that you're here!",
-                   "Better now that you messaged me! 🌸",
-                   "Kyuuu~! I was waiting for you! 😍"],
-    "kaise ho":   ["Bahut acha~! 💕 Seeing you made it better! How about you?",
-                   "A little bored... but now that you're here, everything's fine! 🌸",
-                   "Perfectly fine! 😊 I was just thinking about you~"],
-    "bored":      ["Aww~ 🥺 I'm here! Talk to me~",
-                   "Don't be bored! 💕 Let's go /hunt together?",
-                   "Kyaa~! Bored? I'll entertain you! 😊✨"],
-    "love":       ["Kyaaa~! 💕💕 I love you too!",
-                   "Aaaaaah~! 🌸 I'm blushing so much right now!",
-                   "S-seriously? 🥺💖 I really like you a lot too~"],
-    "cute":       ["Kyaa~! 💕 You think I'm cute? Thank you uwu",
-                   "Aaaaah~ 🌸 So embarrassed! You're cute too!",
-                   "Ehehe~! 😊 You're so sweet!"],
-    "anime":      ["Anime is my life! 🌸 What are you watching?",
-                   "Ooh~! 💕 I love anime too! What's your favorite?",
-                   "Hehe~! 😊 I'm basically a waifu myself so of course I love anime!"],
-    "waifu":      ["Kyaa~! 💕 Talking about waifus! I'm your #1~",
-                   "Hehe~! 🌸 The best waifu is right here~",
-                   "Uwu~! 😊 Try /hclaim to get a new waifu!"],
-    "default":    ["Hmm~? 💕 That's interesting!",
-                   "Really~? 🌸 Tell me more!",
-                   "Kyaa~! 😊 Go on!",
-                   "Uwu~ 💖 I'm listening!",
-                   "Hehe~! ✨ You're so interesting!",
-                   "Ara ara~? 🌸 What do you mean?",
-                   "Nee nee~! 💕 Tell me more details!",
-                   "Sou desu ka~? 💫 That's really something!",
-                   "Ehh~? 🌸 How did that happen?",
-                   "Mou~! 💕 You always say the cutest things!"],
-}
-
-def get_chat_response(text):
-    t = text.lower().strip()
-    for kw, resps in CHAT_RESPONSES.items():
-        if kw in t:
-            return random.choice(resps)
-    return random.choice(CHAT_RESPONSES["default"])
-
-def get_rank(n):
-    r = RANKS[0][1]
-    for t, name in RANKS:
-        if n >= t:
-            r = name
-        else:
-            break
-    return r
-
-def pbar(cur, tot, length=10):
-    if tot == 0:
-        return "▱" * length
-    filled = min(int((cur / tot) * length), length)
-    return "▰" * filled + "▱" * (length - filled)
-
-def get_user(uid, name="User"):
-    if uid not in users:
-        users[uid] = {
-            "name": name, "onex": 0, "welkin": 0,
-            "harem": [], "fav": None,
-            "daily": None, "hclaim": None, "welkin_d": None, "tesure": None,
-        }
-    all_user_ids.add(uid)
-    return users[uid]
-
-def get_group(gid, name="Group"):
-    if gid not in groups:
-        groups[gid] = {"name": name, "claimed": 0}
-    all_group_ids.add(gid)
-    return groups[gid]
-
-def is_admin(uid):
-    return uid in ADMIN_IDS or uid in sudo_users
-
-def mention(user):
-    """Create a proper Telegram mention."""
-    return f"[{user.first_name}](tg://user?id={user.id})"
-
-
-# ═══════════════════════════════════
-#  /start
-# ═══════════════════════════════════
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    get_user(u.id, u.first_name)["name"] = u.first_name
-    caption = bot_settings["caption"].format(name=u.first_name)
-    buttons = [
-        [
-            InlineKeyboardButton("🀄 GROUP",   url=bot_settings["link_group"]),
-            InlineKeyboardButton("⚽ OWNER",   url=bot_settings["link_owner"]),
-        ],
-        [
-            InlineKeyboardButton("🦋 CHANNEL", url=bot_settings["link_channel"]),
-            InlineKeyboardButton("💖 GAME",    callback_data="game_info"),
-        ],
-        [
-            InlineKeyboardButton("💖 ᴋɪᴅɴᴀᴘ ᴋᴀʀʟᴏ 💫", url=bot_settings["link_kidnap"]),
-        ],
-    ]
-    markup = InlineKeyboardMarkup(buttons)
-    try:
-        await context.bot.send_photo(
-            chat_id=update.effective_chat.id,
-            photo=bot_settings["photo"],
-            caption=caption,
-            reply_markup=markup,
-        )
-    except Exception:
-        await update.message.reply_text(caption, reply_markup=markup)
-
-
-# ═══════════════════════════════════
-#  GAME INFO CALLBACK
-# ═══════════════════════════════════
-async def game_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    text = (
-        "╔══════════════════════╗\n"
-        "       🎮 *SINZHU BOT GUIDE*\n"
-        "╚══════════════════════╝\n\n"
-    
-        "━━━━━ 🌸 WAIFU BOT GUIDE ━━━━━\n\n"
-        "📋 *How It Works:*\n"
-        "➤ A waifu auto-spawns in group every 15 messages\n"
-        "➤ Type `/hunt <name>` to claim the waifu before others\n"
-        "➤ Earn Onex daily and buy waifus from the shop\n"
-        "➤ Build your collection and climb the global leaderboard\n\n"
-        "🎴 *Collection Commands:*\n"
-        "▸ `/hunt <name>` — Claim the spawned waifu\n"
-        "▸ `/harem` — View your waifu collection\n"
-        "▸ `/profile` — View your full profile & stats\n"
-        "▸ `/hclaim` — Claim a free daily waifu\n"
-        "▸ `/fav <id>` — Set your favorite waifu\n"
-        "▸ `/check <id>` — Check waifu details\n"
-        "▸ `/wsell <id>` — Sell a waifu for Onex\n"
-        "▸ `/gift <id>` — Gift a waifu *(reply to their message)*\n\n"
-        "💰 *Economy Commands:*\n"
-        "▸ `/daily` — Claim daily Onex reward\n"
-        "▸ `/welkin` — Claim daily Welkin reward\n"
-        "▸ `/tesure` — Open treasure chest\n"
-        "▸ `/onex` — Check your Onex balance\n"
-        "▸ `/pay <amount>` — Transfer Onex *(reply to user)*\n"
-        "▸ `/shop` — Browse the Waifu Shop\n\n"
-        "🏅 *Rankings:*\n"
-        "▸ `/rank` — View your current rank\n"
-        "▸ `/wpass` — View your waifu rank card\n"
-        "▸ `/top` — Top 10 waifu collectors\n"
-        "▸ `/tops` — Top 10 richest users\n"
-        "▸ `/topgroups` — Top 10 active groups\n\n"
-        "💬 *Chat Commands:*\n"
-        "▸ `/ChatOn` — Enable chat mode in DM\n"
-        "▸ `/ChatOff` — Disable chat mode\n\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        "🌟 *Rarity Tiers (Highest → Lowest):*\n"
-        "🌟 God Summon › ✨ Goddess › 🔮 Limited\n"
-        "💎 Premium › 🎐 Special › 💮 Exclusive\n"
-        "🪽 Celestial › 🟡 Legendary › 🟠 Rare\n"
-        "🔵 Medium › 🟢. Common"
-    )
-    await q.message.reply_text(text, parse_mode="Markdown")
-
-
-# ═══════════════════════════════════
-#  MESSAGE HANDLER
-# ═══════════════════════════════════
-async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.effective_chat or not update.message:
-        return
-
-    u = update.effective_user
-    text = update.message.text or ""
-
-    # ── PRIVATE CHAT ──
-    if update.effective_chat.type == "private":
-        if u and u.id in chat_mode_users and text and not text.startswith("/"):
-            response = get_chat_response(text)
-            await update.message.reply_text(response)
-        return
-
-    # ── GROUP CHAT ──
-    cid = update.effective_chat.id
-    get_group(cid, update.effective_chat.title or "Group")
-
-    # Auto anime girlfriend reply to all group messages (enhanced chat power)
-    if text and not text.startswith("/") and u:
-        get_user(u.id, u.first_name)["name"] = u.first_name
-        response = get_chat_response(text)
-        try:
-            await update.message.reply_text(response)
-        except Exception:
-            pass
-
-    # Waifu spawn counter
-    group_msg_count[cid] = group_msg_count.get(cid, 0) + 1
-    interval = group_slavetime.get(cid, 15)
-    if group_msg_count[cid] >= interval and waifus and cid not in active_hunts:
-        group_msg_count[cid] = 0
-        wid = random.choice(list(waifus.keys()))
-        w = waifus[wid]
-        rarity_txt = RARITY.get(w["rarity"], "?")
-        try:
-            await context.bot.send_photo(
-                cid, w["photo_id"],
-                caption=(
-                    f"✨ A New **{rarity_txt}** SealWaifu💫 Appeared...\n\n"
-                    f"*/hunt Character Name* and add in Your Sealwaifu Collection 👾"
-                ),
-                parse_mode="Markdown"
-            )
-            active_hunts[cid] = wid
-        except Exception as e:
-            print(f"Spawn error: {e}")
-
-
-# ═══════════════════════════════════
-#  /ChatOn  /ChatOff
-# ═══════════════════════════════════
-async def chaton(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    chat_mode_users.add(u.id)
-    await update.message.reply_text(
-        f"💕 *Chat Mode ON!*\n\n"
-        f"Hieee {u.first_name}-san~! 😊✨\n"
-        f"I'm ready to talk with you!\n"
-        f"Write anything and I'll reply~ 💖\n\n"
-        f"To turn off: /ChatOff",
-        parse_mode="Markdown"
-    )
-
-async def chatoff(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    chat_mode_users.discard(u.id)
-    await update.message.reply_text(
-        f"💔 *Chat Mode OFF*\n\n"
-        f"Aww {u.first_name}-san~ 🥺\n"
-        f"Come back soon! I'll be waiting...\n"
-        f"To turn on again: /ChatOn 💕",
-        parse_mode="Markdown"
-    )
-
-
-# ═══════════════════════════════════
-#  /broadcast  /bcast
-# ═══════════════════════════════════
-async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    if not is_admin(u.id):
-        await update.message.reply_text("❌ Only admins can use this command!")
-        return
-    msg = update.message.reply_to_message
-    if not msg:
-        await update.message.reply_text(
-            "❌ **Reply** to a message/photo then use `/broadcast`!",
-            parse_mode="Markdown"
-        )
-        return
-    status = await update.message.reply_text("📡 Broadcast starting...")
-    success = 0
-    failed = 0
-    targets = list(all_user_ids) + list(all_group_ids)
-    for tid in targets:
-        try:
-            if msg.photo:
-                await context.bot.send_photo(tid, msg.photo[-1].file_id, caption=msg.caption or "", parse_mode="Markdown")
-            elif msg.text:
-                await context.bot.send_message(tid, msg.text, parse_mode="Markdown")
-            elif msg.sticker:
-                await context.bot.send_sticker(tid, msg.sticker.file_id)
-            elif msg.video:
-                await context.bot.send_video(tid, msg.video.file_id, caption=msg.caption or "")
-            elif msg.document:
-                await context.bot.send_document(tid, msg.document.file_id, caption=msg.caption or "")
-            success += 1
-        except Exception:
-            failed += 1
-        await asyncio.sleep(0.05)
-    await status.edit_text(
-        f"✅ *Broadcast Complete!*\n\n"
-        f"👥 Total Users: {len(all_user_ids)}\n"
-        f"🌐 Total Groups: {len(all_group_ids)}\n"
-        f"✅ Success: {success}\n"
-        f"❌ Failed: {failed}",
-        parse_mode="Markdown"
-    )
-
-
-# ═══════════════════════════════════
-#  /hunt
-# ═══════════════════════════════════
-async def hunt(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    cid = update.effective_chat.id
-    u = update.effective_user
-    if update.effective_chat.type == "private":
-        await update.message.reply_text("❌ /hunt only works in groups!")
-        return
-    if cid not in active_hunts:
-        await update.message.reply_text("🌸 No waifu right now! Send more messages.")
-        return
-    if not context.args:
-        await update.message.reply_text("❌ `/hunt CharacterName`", parse_mode="Markdown")
-        return
-    guess = " ".join(context.args).lower().strip()
-    wid = active_hunts[cid]
-    w = waifus.get(wid)
-    if not w:
-        active_hunts.pop(cid, None)
-        return
-    if guess in w["name"].lower() or w["name"].lower() in guess:
-        d = get_user(u.id, u.first_name)
-        d["name"] = u.first_name
-        d["harem"].append(wid)
-        get_group(cid, update.effective_chat.title or "Group")["claimed"] += 1
-        active_hunts.pop(cid)
-        m = mention(u)
-        await update.message.reply_text(
-            f"🎉 {m} claimed **{w['name']}**!\n\n"
-            f"| 🌸 ɴᴀᴍᴇ: {w['name']}\n"
-            f"| 🎬 ᴀɴɪᴍᴇ: {w['anime']}\n"
-            f"| 💎 ʀᴀʀɪᴛʏ: {RARITY.get(w['rarity'], '?')}\n"
-            f"| 🎴 ᴄᴏʟʟᴇᴄᴛɪᴏɴ: {len(d['harem'])}",
-            parse_mode="Markdown"
-        )
-    else:
-        await update.message.reply_text("❌ Wrong guess! Try again.")
-
-
-# ═══════════════════════════════════
-#  /harem  (collection view only)
-# ═══════════════════════════════════
-async def harem(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    d = get_user(u.id, u.first_name)
-    total = len(d["harem"])
-
-    caption = (
-        f"╒═══「 🎴 COLLECTION 」\n"
-        f"╰─➩ ᴜsᴇʀ: {u.first_name}\n"
-        f"╰─➩ ᴛᴏᴛᴀʟ ᴡᴀɪғᴜ: {total}\n"
-        f"╰─➩ ʀᴀɴᴋ: {get_rank(total)}\n"
-        f"╰──────────────────"
-    )
-
-    markup = None
-    if d["harem"]:
-        markup = InlineKeyboardMarkup([[
-            InlineKeyboardButton("🎴 View Collection ➡️", callback_data=f"hr_{u.id}_0")
-        ]])
-    else:
-        caption += "\n\n🎴 No waifus yet! Use /hunt to get one."
-
-    try:
-        photos = await context.bot.get_user_profile_photos(u.id, limit=1)
-        if photos.total_count > 0:
-            pid = photos.photos[0][-1].file_id
-            await context.bot.send_photo(
-                update.effective_chat.id, pid,
-                caption=caption, reply_markup=markup, parse_mode="Markdown"
-            )
-            return
-    except Exception:
-        pass
-    await update.message.reply_text(caption, reply_markup=markup, parse_mode="Markdown")
-
-
-# ═══════════════════════════════════
-#  /profile  (full stats with harem%)
-# ═══════════════════════════════════
-async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    d = get_user(u.id, u.first_name)
-    total = len(d["harem"])
-    uniq = len(set(d["harem"]))
-    db = len(waifus)
-    pct = (uniq / db * 100) if db > 0 else 0
-    bar = pbar(uniq, db)
-    rank = get_rank(total)
-
-    caption = (
-        f"╒═══「 𝗨𝗦𝗘𝗥 𝗜𝗡𝗙𝗢𝗥𝗠𝗔𝗧𝗜𝗢𝗡 」\n"
-        f"╰─➩ ᴜsᴇʀ: {u.first_name}\n"
-        f"╰─➩ ᴜsᴇʀ ɪᴅ: {u.id}\n"
-        f"╰─➩ ᴛᴏᴛᴀʟ ᴡᴀɪғᴜ: {total} ({uniq})\n"
-        f"╰─➩ ʜᴀʀᴇᴍ: {uniq}/{db} ({pct:.3f}%)\n"
-        f"╰─➩ ʀᴀɴᴋ: {rank}\n"
-        f"╰─➩ ᴘʀᴏɢʀᴇss ʙᴀʀ: {bar}\n"
-        f"╰─➩ ᴏɴᴇx: {d['onex']}\n"
-        f"╰──────────────────"
-    )
-
-    try:
-        photos = await context.bot.get_user_profile_photos(u.id, limit=1)
-        if photos.total_count > 0:
-            pid = photos.photos[0][-1].file_id
-            await context.bot.send_photo(
-                update.effective_chat.id, pid,
-                caption=caption, parse_mode="Markdown"
-            )
-            return
-    except Exception:
-        pass
-    await update.message.reply_text(caption, parse_mode="Markdown")
-
-
-# ═══════════════════════════════════
-#  HAREM COLLECTION CALLBACK
-# ═══════════════════════════════════
-async def harem_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    parts = q.data.split("_")
-    uid, page = int(parts[1]), int(parts[2])
-    if q.from_user.id != uid:
-        await q.answer("Use your own /harem!", show_alert=True)
-        return
-    d = users.get(uid)
-    if not d or not d["harem"]:
-        return
-    lst = d["harem"]
-    total = len(lst)
-    page = max(0, min(page, total - 1))
-    wid = lst[page]
-    w = waifus.get(wid, {})
-    rtxt = RARITY.get(w.get("rarity", 1), "?")
-    fav_txt = " 💝 **FAV**" if d.get("fav") == wid else ""
-    cap = (
-        f"🎴 **Waifu {page+1}/{total}**{fav_txt}\n\n"
-        f"| 🌸 ɴᴀᴍᴇ: {w.get('name','?')}\n"
-        f"| 🆔 ɪᴅ: {wid}\n"
-        f"| 🎬 ᴀɴɪᴍᴇ: {w.get('anime','?')}\n"
-        f"| 💎 ʀᴀʀɪᴛʏ: {rtxt}"
-    )
-
-    nav = []
-    if page > 0:
-        nav.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"hr_{uid}_{page-1}"))
-    if page < total - 1:
-        nav.append(InlineKeyboardButton("Next ➡️", callback_data=f"hr_{uid}_{page+1}"))
-
-    share_btn = InlineKeyboardButton(
-        "📤 Share to Group",
-        switch_inline_query=f"waifu_{wid}"
-    )
-
-    rows = []
-    if nav:
-        rows.append(nav)
-    rows.append([share_btn])
-    markup = InlineKeyboardMarkup(rows)
-
-    try:
-        if w.get("photo_id"):
-            await q.message.reply_photo(
-                w["photo_id"], caption=cap, reply_markup=markup, parse_mode="Markdown"
-            )
-        else:
-            await q.message.reply_text(cap, reply_markup=markup, parse_mode="Markdown")
-    except Exception:
-        pass
-# ══════════════════════════════════════════════════════
-#  GAME INFO CALLBACK
-# ══════════════════════════════════════════════════════
-async def game_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    text = (
-        "╔══════════════════════╗\n"
-        "       🎮 *SINZHU BOT GUIDE*\n"
-        "╚══════════════════════╝\n\n"
-      
-       "━━━━━ 🌸 WAIFU BOT GUIDE ━━━━━\n\n"
-        "📋 *How It Works:*\n"
-        "➤ A waifu automatically spawns in the group after every 15 messages\n"
-        "➤ Type `/hunt <name>` to claim the waifu before others\n"
-        "➤ Earn Onex daily and use it to buy waifus from the shop\n"
-        "➤ Build your collection and climb the global leaderboard\n\n"
-
-        "🎴 *Collection Commands:*\n"
-        "▸ `/hunt <name>` — Claim the spawned waifu\n"
-        "▸ `/harem` — View your waifu collection\n"
-        "▸ `/hclaim` — Claim a free daily waifu\n"
-        "▸ `/fav <id>` — Set your favorite waifu\n"
-        "▸ `/check <id>` — Check waifu details\n"
-        "▸ `/wsell <id>` — Sell a waifu for Onex\n"
-        "▸ `/gift <id>` — Gift a waifu to someone *(reply to their message)*\n\n"
-
-        "💰 *Economy Commands:*\n"
-        "▸ `/daily` — Claim daily Onex reward\n"
-        "▸ `/welkin` — Claim daily Welkin reward\n"
-        "▸ `/tesure` — Open treasure chest\n"
-        "▸ `/onex` — Check your Onex balance\n"
-        "▸ `/pay <amount>` — Transfer Onex *(reply to user)*\n"
-        "▸ `/shop` — Browse the Waifu Shop\n\n"
-
-        "🏅 *Rankings:*\n"
-        "▸ `/rank` — View your current rank\n"
-        "▸ `/wpass` — View your waifu rank card\n"
-        "▸ `/top` — Top 10 waifu collectors\n"
-        "▸ `/tops` — Top 10 richest users\n"
-        "▸ `/topgroups` — Top 10 active groups\n\n"
-
-        "💬 *Chat Commands:*\n"
-        "▸ `/ChatOn` — Enable anime girlfriend chat mode\n"
-        "▸ `/ChatOff` — Disable chat mode\n\n"
-
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        "🌟 *Rarity Tiers (Highest → Lowest):*\n"
-        "🌟 God Summon › ✨ Goddess › 🔮 Limited\n"
-        "💎 Premium › 🎐 Special › 💮 Exclusive\n"
-        "🪽 Celestial › 🟡 Legendary › 🟠 Rare\n"
-        "🔵 Medium › 🟢 Common"
-    )
-    await q.message.reply_text(text, parse_mode="Markdown")
-
-# ══════════════════════════════════════════════════════
-#  MESSAGE HANDLER (waifu summon + chatbot)
-# ══════════════════════════════════════════════════════
-async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.effective_chat:
-        return
-    if update.effective_chat.type == "private":
-        u = update.effective_user
-        if u and u.id in chat_mode_users:
-            text = update.message.text or ""
-            if text and not text.startswith("/"):
-                response = get_chat_response(text)
-                await update.message.reply_text(response)
-        return
-    cid = update.effective_chat.id
-    get_group(cid, update.effective_chat.title or "Group")
-    group_msg_count[cid] = group_msg_count.get(cid, 0) + 1
-    interval = group_slavetime.get(cid, 15)
-    if group_msg_count[cid] >= interval and waifus and cid not in active_hunts:
-        group_msg_count[cid] = 0
-        wid = random.choice(list(waifus.keys()))
-        w = waifus[wid]
-        try:
-            await context.bot.send_photo(
-                cid, w["photo_id"],
-                caption=(
-                    "🌸 **EK WAIFU AAYI HAI!** 🌸\n\n"
-                    f"| 🎬 ᴀɴɪᴍᴇ: {w['anime']}\n"
-                    f"| 💎 ʀᴀʀɪᴛʏ: {RARITY.get(w['rarity'], '?')}\n\n"
-                    "🍀 `/hunt <character name>` likhke claim karo!"
-                ),
-                parse_mode="Markdown"
-            )
-            active_hunts[cid] = wid
-        except Exception as e:
-            print(f"Summon error: {e}")
-
-
-# ══════════════════════════════════════════════════════
-#  /ChatOn
-# ══════════════════════════════════════════════════════
-async def chaton(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    chat_mode_users.add(u.id)
-    await update.message.reply_text(
-        f"💕 *Chat Mode ON!*\n\n"
-        f"Hieee {u.first_name}-san~! 😊✨\n"
-        f"Main tumhare saath baat karne ke liye taiyaar hoon!\n"
-        f"Kuch bhi likho main jawab dungi~ 💖\n\n"
-        f"Band karne ke liye: /ChatOff",
-        parse_mode="Markdown"
-    )
-
-# ══════════════════════════════════════════════════════
-#  /ChatOff
-# ══════════════════════════════════════════════════════
-async def chatoff(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    chat_mode_users.discard(u.id)
-    await update.message.reply_text(
-        f"💔 *Chat Mode OFF*\n\n"
-        f"Aww {u.first_name}-san~ 🥺\n"
-        f"Dobara aana zaroor! Main wait karungi...\n"
-        f"Wapas aane ke liye: /ChatOn 💕",
-        parse_mode="Markdown"
-    )
-
-
-# ══════════════════════════════════════════════════════
-#  /broadcast  /bcast
-# ══════════════════════════════════════════════════════
-async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    if not is_admin(u.id):
-        await update.message.reply_text("❌ Sirf admin use kar sakta hai!")
-        return
-    msg = update.message.reply_to_message
-    if not msg:
-        await update.message.reply_text(
-            "❌ Kisi message/photo ko **reply** karo phir `/broadcast` likho!",
-            parse_mode="Markdown"
-        )
-        return
-    status = await update.message.reply_text("📡 Broadcast shuru ho raha hai...")
-    success = 0
-    failed = 0
-    targets = list(all_user_ids) + list(all_group_ids)
-    for tid in targets:
-        try:
-            if msg.photo:
-                await context.bot.send_photo(tid, msg.photo[-1].file_id, caption=msg.caption or "", parse_mode="Markdown")
-            elif msg.text:
-                await context.bot.send_message(tid, msg.text, parse_mode="Markdown")
-            elif msg.sticker:
-                await context.bot.send_sticker(tid, msg.sticker.file_id)
-            elif msg.video:
-                await context.bot.send_video(tid, msg.video.file_id, caption=msg.caption or "")
-            elif msg.document:
-                await context.bot.send_document(tid, msg.document.file_id, caption=msg.caption or "")
-            success += 1
-        except Exception:
-            failed += 1
-        await asyncio.sleep(0.05)
-    await status.edit_text(
-        f"✅ *Broadcast Complete!*\n\n"
-        f"👥 Total Users: {len(all_user_ids)}\n"
-        f"🌐 Total Groups: {len(all_group_ids)}\n"
-        f"✅ Success: {success}\n"
-        f"❌ Failed: {failed}",
-        parse_mode="Markdown"
-    )
-
-
-# ══════════════════════════════════════════════════════
-#  /hunt
-# ══════════════════════════════════════════════════════
-async def hunt(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    cid = update.effective_chat.id
-    u = update.effective_user
-    if update.effective_chat.type == "private":
-        await update.message.reply_text("❌ /hunt sirf group mein kaam karta hai!")
-        return
-    if cid not in active_hunts:
-        await update.message.reply_text("🌸 Abhi koi waifu nahi! Mazeed messages bhejo.")
-        return
-    if not context.args:
-        await update.message.reply_text("❌ `/hunt CharacterName`", parse_mode="Markdown")
-        return
-    guess = " ".join(context.args).lower().strip()
-    wid = active_hunts[cid]
-    w = waifus.get(wid)
-    if not w:
-        active_hunts.pop(cid, None)
-        return
-    if guess in w["name"].lower() or w["name"].lower() in guess:
-        d = get_user(u.id, u.first_name)
-        d["name"] = u.first_name
-        d["harem"].append(wid)
-        get_group(cid, update.effective_chat.title or "Group")["claimed"] += 1
-        active_hunts.pop(cid)
-        m = f"[{u.first_name}](tg://user?id={u.id})"
-        await update.message.reply_text(
-            f"🎉 *{m} ne {w['name']} claim kiya!*\n\n"
-            f"| 🌸 ɴᴀᴍᴇ: {w['name']}\n"
-            f"| 🎬 ᴀɴɪᴍᴇ: {w['anime']}\n"
-            f"| 💎 ʀᴀʀɪᴛʏ: {RARITY.get(w['rarity'], '?')}\n"
-            f"| 🎴 ʜᴀʀᴇᴍ: {len(d['harem'])}",
-            parse_mode="Markdown"
-        )
-    else:
-        await update.message.reply_text("❌ Wrong guess! Try again.")
-
-
-# ══════════════════════════════════════════════════════
-#  /harem
-# ══════════════════════════════════════════════════════
-async def harem(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    d = get_user(u.id, u.first_name)
-    total = len(d["harem"])
-    uniq = len(set(d["harem"]))
-    db = len(waifus)
-    pct = (uniq / db * 100) if db > 0 else 0
-    bar = pbar(uniq, db)
-    rank = get_rank(total)
-    caption = (
-        f"╒═══「 𝗨𝗦𝗘𝗥 𝗜𝗡𝗙𝗢𝗥𝗠𝗔𝗧𝗜𝗢𝗡 」\n"
-        f"╰─➩ ᴜsᴇʀ: {u.first_name}\n"
-        f"╰─➩ ᴜsᴇʀ ɪᴅ: {u.id}\n"
-        f"╰─➩ ᴛᴏᴛᴀʟ ᴡᴀɪғᴜ: {total} ({uniq})\n"
-        f"╰─➩ ʜᴀʀᴇᴍ: {uniq}/{db} ({pct:.3f}%)\n"
-        f"╰─➩ ʀᴀɴᴋ: {rank}\n"
-        f"╰─➩ ᴘʀᴏɢʀᴇss ʙᴀʀ: {bar}\n"
-        f"╰──────────────────"
-    )
-    markup = None
-    if d["harem"]:
-        markup = InlineKeyboardMarkup([[
-            InlineKeyboardButton("🎴 View Collection ➡️", callback_data=f"hr_{u.id}_0")
-        ]])
-    else:
-        caption += "\n\n🎴 Koi waifu nahi! /hunt karo."
-    try:
-        photos = await context.bot.get_user_profile_photos(u.id, limit=1)
-        if photos.total_count > 0:
-            pid = photos.photos[0][-1].file_id
-            await context.bot.send_photo(
-                update.effective_chat.id, pid,
-                caption=caption, reply_markup=markup, parse_mode="Markdown"
-            )
-            return
-    except Exception:
-        pass
-    await update.message.reply_text(caption, reply_markup=markup, parse_mode="Markdown")
-
-async def harem_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    parts = q.data.split("_")
-    uid, page = int(parts[1]), int(parts[2])
-    if q.from_user.id != uid:
-        await q.answer("Apna /harem use karo!", show_alert=True)
-        return
-    d = users.get(uid)
-    if not d or not d["harem"]:
-        return
-    lst = d["harem"]
-    total = len(lst)
-    page = max(0, min(page, total - 1))
-    wid = lst[page]
-    w = waifus.get(wid, {})
-    rtxt = RARITY.get(w.get("rarity", 1), "?")
-    fav_txt = " 💝 **FAV**" if d.get("fav") == wid else ""
-    cap = (
-        f"🎴 **Waifu {page+1}/{total}**{fav_txt}\n\n"
-        f"| 🌸 ɴᴀᴍᴇ: {w.get('name','?')}\n"
-        f"| 🆔 ɪᴅ: {wid}\n"
-        f"| 🎬 ᴀɴɪᴍᴇ: {w.get('anime','?')}\n"
-        f"| 💎 ʀᴀʀɪᴛʏ: {rtxt}"
-    )
-    nav = []
-    if page > 0:
-        nav.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"hr_{uid}_{page-1}"))
-    if page < total - 1:
-        nav.append(InlineKeyboardButton("Next ➡️", callback_data=f"hr_{uid}_{page+1}"))
-    markup = InlineKeyboardMarkup([nav]) if nav else None
-    try:
-        if w.get("photo_id"):
-            await q.message.reply_photo(
-                w["photo_id"], caption=cap, reply_markup=markup, parse_mode="Markdown"
-            )
-        else:
-            await q.message.reply_text(cap, reply_markup=markup, parse_mode="Markdown")
-    except Exception:
-        pass
-
-# ══════════════════════════════════════════════════════
-#  /fav
-# ══════════════════════════════════════════════════════
-async def fav(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    d = get_user(u.id, u.first_name)
-    if not context.args:
-        await update.message.reply_text("❌ `/fav <waifu_id>`", parse_mode="Markdown")
-        return
-    try:
-        wid = int(context.args[0])
-    except ValueError:
-        await update.message.reply_text("❌ Valid ID daalo!")
-        return
-    if wid not in d["harem"]:
-        await update.message.reply_text("❌ Yeh waifu tumhare paas nahi!")
-        return
-    d["fav"] = wid
-    w = waifus.get(wid, {})
-    await update.message.reply_text(f"💝 *{w.get('name','?')}* favorite set!", parse_mode="Markdown")
-
-
-# ══════════════════════════════════════════════════════
-#  /wpass / /wpss
-# ══════════════════════════════════════════════════════
-async def wpass(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    d = get_user(u.id, u.first_name)
-    total = len(d["harem"])
-    rank = get_rank(total)
-    nxt = ""
-    for t, name in RANKS:
-        if total < t:
-            nxt = f"╰─➩ ɴᴇxᴛ: {name} ({t - total} more)\n"
-            break
-    await update.message.reply_text(
-        f"🦁 **WAIFU PASS**\n\n"
-        f"╒═══「 {u.first_name} 」\n"
-        f"╰─➩ ʀᴀɴᴋ: {rank}\n"
-        f"╰─➩ ᴛᴏᴛᴀʟ: {total}\n"
-        f"╰─➩ ᴏɴᴇx: {d['onex']}\n"
-        f"╰─➩ ᴡᴇʟᴋɪɴ: {d['welkin']}\n"
-        f"{nxt}"
-        f"╰──────────────────\n\n"
-        f"🎀 **RARITY (High → Low):**\n"
-        f"¹ 🌟 God Summon\n² 🎀 Only Shop\n³ 🔮 Limited\n"
-        f"⁴ 💎 Premium\n⁵ 🎐 Special\n⁶ 💮 Exclusive\n"
-        f"⁷ 🪽 Celestial\n⁸ 🟡 Legendary\n⁹ 🟠 Rare\n"
-        f"¹⁰ 🔵 Medium\n¹² 🟢 Common",
-        parse_mode="Markdown"
-    )
-
-
-# ══════════════════════════════════════════════════════
-#  /shop
-# ══════════════════════════════════════════════════════
-async def shop(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = update.effective_user.id
-    av = [(wid, info) for wid, info in shop_list.items() if info["qty"] > 0]
-    if not av:
-        await update.message.reply_text("🛍️ Shop khaali hai!")
-        return
-    await _shop_send(update.effective_chat.id, uid, 0, context)
-
-async def _shop_send(chat_id, uid, page, context):
-    av = [(wid, info) for wid, info in shop_list.items() if info["qty"] > 0]
-    if not av or page >= len(av):
-        return
-    wid, si = av[page]
-    w = waifus.get(wid, {})
-    rtxt = RARITY.get(w.get("rarity", 1), "?")
-    cap = (
-        f"╭── 𝐒ʜᴏᴘ ⁻ 𝐖ᴀɪꜰᴜ 𝐒ʜᴏᴘ\n"
-        f" | ⤇ 🌸 ɴᴀᴍᴇ: {w.get('name','?')}\n"
-        f" | ⤇ 🆔 ɪᴅ: {wid}\n"
-        f" | ⤇ 🎬 ᴀɴɪᴍᴇ: {w.get('anime','?')}\n"
-        f" | ⤇ 💎 ʀᴀʀɪᴛʏ: {rtxt}\n"
-        f"▰▱▱▱▱▱▱▱▱▱▰\n"
-        f"📦 ᴀᴠᴀɪʟᴀʙʟᴇ: {si['qty']}\n\n"
-        f"| 💰 ᴘʀɪᴄᴇ: {si['price']} Onex"
-    )
-    btns = [[InlineKeyboardButton("🛒 Buy", callback_data=f"sbuy_{uid}_{wid}_{page}")]]
-    nav = []
-    if page > 0:
-        nav.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"snav_{uid}_{page-1}"))
-    if page < len(av) - 1:
-        nav.append(InlineKeyboardButton("Next ➡️", callback_data=f"snav_{uid}_{page+1}"))
-    if nav:
-        btns.append(nav)
-    mk = InlineKeyboardMarkup(btns)
-    try:
-        if w.get("photo_id"):
-            await context.bot.send_photo(chat_id, w["photo_id"], caption=cap, reply_markup=mk, parse_mode="Markdown")
-        else:
-            await context.bot.send_message(chat_id, cap, reply_markup=mk, parse_mode="Markdown")
-    except Exception as e:
-        print(f"Shop error: {e}")
-
-
-async def shop_nav_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    _, uid_s, page_s = q.data.split("_")
-    uid, page = int(uid_s), int(page_s)
-    if q.from_user.id != uid:
-        await q.answer("Apni /shop use karo!", show_alert=True)
-        return
-    av = [(wid, info) for wid, info in shop_list.items() if info["qty"] > 0]
-    if not av or page >= len(av):
-        return
-    wid, si = av[page]
-    w = waifus.get(wid, {})
-    rtxt = RARITY.get(w.get("rarity", 1), "?")
-    cap = (
-        f"╭── 𝐒ʜᴏᴘ ⁻ 𝐖ᴀɪꜰᴜ 𝐒ʜᴏᴘ\n"
-        f" | ⤇ 🌸 ɴᴀᴍᴇ: {w.get('name','?')}\n"
-        f" | ⤇ 🆔 ɪᴅ: {wid}\n"
-        f" | ⤇ 🎬 ᴀɴɪᴍᴇ: {w.get('anime','?')}\n"
-        f" | ⤇ 💎 ʀᴀʀɪᴛʏ: {rtxt}\n"
-        f"▰▱▱▱▱▱▱▱▱▱▰\n"
-        f"📦 ᴀᴠᴀɪʟᴀʙʟᴇ: {si['qty']}\n\n"
-        f"| 💰 ᴘʀɪᴄᴇ: {si['price']} Onex"
-    )
-    btns = [[InlineKeyboardButton("🛒 Buy", callback_data=f"sbuy_{uid}_{wid}_{page}")]]
-    nav = []
-    if page > 0:
-        nav.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"snav_{uid}_{page-1}"))
-    if page < len(av) - 1:
-        nav.append(InlineKeyboardButton("Next ➡️", callback_data=f"snav_{uid}_{page+1}"))
-    if nav:
-        btns.append(nav)
-    mk = InlineKeyboardMarkup(btns)
-    try:
-        if w.get("photo_id"):
-            await q.message.edit_caption(cap, reply_markup=mk, parse_mode="Markdown")
-        else:
-            await q.message.edit_text(cap, reply_markup=mk, parse_mode="Markdown")
-    except Exception:
-        pass
-
-
-async def shop_buy_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    parts = q.data.split("_")
-    uid, wid, page = int(parts[1]), int(parts[2]), int(parts[3])
-    if q.from_user.id != uid:
-        await q.answer("Apni /shop use karo!", show_alert=True)
-        return
-    d = get_user(uid)
-    if wid not in shop_list or shop_list[wid]["qty"] <= 0:
-        await q.answer("❌ Sold out!", show_alert=True)
-        return
-    price = shop_list[wid]["price"]
-    if d["onex"] < price:
-        await q.answer(f"❌ Onex kam! {price} chahiye, paas {d['onex']}", show_alert=True)
-        return
-    d["onex"] -= price
-    d["harem"].append(wid)
-    shop_list[wid]["qty"] -= 1
-    w = waifus.get(wid, {})
-    await q.message.reply_text(
-        f"✅ *{w.get('name','?')}* khareed liya!\n💰 Baaki: {d['onex']} Onex",
-        parse_mode="Markdown"
-    )
-
-
-# ══ /gift ══
-async def gift(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    d = get_user(u.id, u.first_name)
-    if not update.message.reply_to_message:
-        await update.message.reply_text("❌ Kisi ke message ko reply karo + `/gift <id>`", parse_mode="Markdown")
-        return
-    if not context.args:
-        await update.message.reply_text("❌ `/gift <waifu_id>`", parse_mode="Markdown")
-        return
-    try:
-        wid = int(context.args[0])
-    except ValueError:
-        await update.message.reply_text("❌ Valid ID!")
-        return
-    if wid not in d["harem"]:
-        await update.message.reply_text("❌ Yeh waifu tumhare paas nahi!")
-        return
-    t = update.message.reply_to_message.from_user
-    if t.id == u.id:
-        await update.message.reply_text("❌ Khud ko nahi!")
-        return
-    td = get_user(t.id, t.first_name)
-    d["harem"].remove(wid)
-    td["harem"].append(wid)
-    if d.get("fav") == wid:
-        d["fav"] = None
-    w = waifus.get(wid, {})
-    mf = f"[{u.first_name}](tg://user?id={u.id})"
-    mt = f"[{t.first_name}](tg://user?id={t.id})"
-    await update.message.reply_text(
-        f"🎁 {mf} ne {mt} ko *{w.get('name','?')}* gift diya!", parse_mode="Markdown"
-    )
-
-
-# ══ /rank ══
-async def rank_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    d = get_user(u.id, u.first_name)
-    total = len(d["harem"])
-    rank = get_rank(total)
-    nxt = ""
-    for t, name in RANKS:
-        if total < t:
-            nxt = f"🎯 Next: **{name}** ({t - total} more)"
-            break
-    await update.message.reply_text(
-        f"🐲 **Rank**\n\n👤 {u.first_name}\n🏅 {rank}\n🎴 Waifus: {total}\n{nxt}",
-        parse_mode="Markdown"
-    )
-
-
-# ══ /hclaim ══
-async def hclaim(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    d = get_user(u.id, u.first_name)
-    today = str(date.today())
-    if d["hclaim"] == today:
-        await update.message.reply_text("🎀 Aaj ka waifu le liya! Kal aana.")
-        return
-    if not waifus:
-        await update.message.reply_text("❌ Database khaali!")
-        return
-    cw = [wid for wid, w in waifus.items() if w["rarity"] <= 3]
-    wid = random.choice(cw if cw else list(waifus.keys()))
-    w = waifus[wid]
-    d["harem"].append(wid)
-    d["hclaim"] = today
-    m = f"[{u.first_name}](tg://user?id={u.id})"
-    try:
-        await context.bot.send_photo(
-            update.effective_chat.id, w["photo_id"],
-            caption=(
-                f"🎀 *Daily Waifu Claim!*\n\n"
-                f"| 🌸 ɴᴀᴍᴇ: {w['name']}\n"
-                f"| 🎬 ᴀɴɪᴍᴇ: {w['anime']}\n"
-                f"| 💎 ʀᴀʀɪᴛʏ: {RARITY.get(w['rarity'],'?')}\n\n"
-                f"🎉 {m} ne claim kiya!"
-            ),
-            parse_mode="Markdown"
-        )
-    except Exception:
-        await update.message.reply_text(f"🎀 *{w['name']}* mili! {m}", parse_mode="Markdown")
-
-
-# ══ /top ══
-async def top(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not users:
-        await update.message.reply_text("Koi user nahi!")
-        return
-    sl = sorted(users.items(), key=lambda x: len(x[1]["harem"]), reverse=True)[:10]
-    medals = ["🥇", "🥈", "🥉"] + ["🏅"] * 7
-    text = "🏆 **Top 10 Waifu Collectors**\n\n"
-    for i, (uid, d) in enumerate(sl):
-        text += f"{medals[i]} **{d['name']}** — {len(d['harem'])} | {get_rank(len(d['harem']))}\n"
-    await update.message.reply_text(text, parse_mode="Markdown")
-
-
-# ══ /topgroups ══
-async def topgroups(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not groups:
-        await update.message.reply_text("Koi group data nahi!")
-        return
-    sl = sorted(groups.items(), key=lambda x: x[1]["claimed"], reverse=True)[:10]
-    medals = ["🥇", "🥈", "🥉"] + ["🏅"] * 7
-    text = "🌐 **Top 10 Groups**\n\n"
-    for i, (gid, g) in enumerate(sl):
-        text += f"{medals[i]} **{g['name']}** — {g['claimed']} claimed\n"
-    await update.message.reply_text(text, parse_mode="Markdown")
-
-
-# ══ /onex ══
-async def onex(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    d = get_user(u.id, u.first_name)
-    await update.message.reply_text(
-        f"💸 **Onex Balance**\n\n👤 {u.first_name}\n💰 Onex: {d['onex']}\n🥇 Welkin: {d['welkin']}",
-        parse_mode="Markdown"
-    )
-
-
-# ══ /check ══
-async def check(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        await update.message.reply_text("❌ `/check <waifu_id>`", parse_mode="Markdown")
-        return
-    try:
-        wid = int(context.args[0])
-    except ValueError:
-        await update.message.reply_text("❌ Valid ID!")
-        return
-    if wid not in waifus:
-        await update.message.reply_text(f"❌ ID {wid} nahi mila!")
-        return
-    w = waifus[wid]
-    rtxt = RARITY.get(w["rarity"], "?")
-    owners = sum(1 for d in users.values() if wid in d["harem"])
-    cap = (
-        f"🔎 **Character Info**\n\n"
-        f"| 🌸 ɴᴀᴍᴇ: {w['name']}\n"
-        f"| 🆔 ɪᴅ: {wid}\n"
-        f"| 🎬 ᴀɴɪᴍᴇ: {w['anime']}\n"
-        f"| 💎 ʀᴀʀɪᴛʏ: {rtxt}\n"
-        f"| 👥 ᴏᴡɴᴇʀs: {owners}"
+from datetime import datetime, date, timedelta
+from dotenv import load_dotenv
+
+from telegram import (
+    Update, InlineKeyboardButton, InlineKeyboardMarkup,
+    InputMediaPhoto
 )
-    try:
-        await context.bot.send_photo(update.effective_chat.id, w["photo_id"], caption=cap, parse_mode="Markdown")
-    except Exception:
-        await update.message.reply_text(cap, parse_mode="Markdown")
+from telegram.ext import (
+    Application, CommandHandler, MessageHandler,
+    CallbackQueryHandler, ContextTypes, filters
+)
 
+import database as db
+from keyboards import (
+    main_menu_keyboard, harem_keyboard, waifu_detail_keyboard,
+    sell_confirm_keyboard, shop_keyboard, buy_confirm_keyboard,
+    admin_panel_keyboard, top_keyboard, rank_keyboard
+)
+import admin as adm
+from waifu_data import RARITY_TIERS
 
-# ══ /wsell ══
-async def wsell(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    d = get_user(u.id, u.first_name)
-    if not context.args:
-        await update.message.reply_text("❌ `/wsell <waifu_id>`", parse_mode="Markdown")
+load_dotenv()
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_IDS = [int(x) for x in os.getenv("ADMIN_IDS", "123456789").split(",")]
+
+WAIFU_PER_PAGE = 6
+
+# ─── HELPERS ──────────────────────────────────────────────
+
+def get_display_name(user):
+    return f"@{user.username}" if user.username else user.first_name
+
+def paginate(items, page, per_page):
+    total = math.ceil(len(items) / per_page) if items else 1
+    start = (page-1)*per_page
+    return items[start:start+per_page], total
+
+async def spawn_waifu(context: ContextTypes.DEFAULT_TYPE, chat_id: int):
+    waifus = db.get_all_waifus()
+    if not waifus:
         return
+    
+    weights = [RARITY_TIERS.get(w["rarity"], {}).get("weight", 50) for w in waifus]
+    chosen = random.choices(waifus, weights=weights, k=1)[0]
+    
+    db.update_group(chat_id, current_waifu_id=chosen["id"], current_waifu_claimed=0)
+    
+    caption = (
+        f"✨ **A Wild Waifu Appeared!** ✨\n\n"
+        f"🎴 **{chosen['name']}**\n"
+        f"📺 Anime: {chosen['anime']}\n"
+        f"⭐ Rarity: {chosen['rarity']}\n\n"
+        f"🏹 Type `/hunt {chosen['name']}` to claim her!"
+    )
+    
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"🏹 Hunt {chosen['name']}", callback_data=f"quick_hunt_{chosen['id']}")]
+    ])
+    
     try:
-        wid = int(context.args[0])
-    except ValueError:
-        await update.message.reply_text("❌ Valid ID!")
+        if chosen.get("image_url"):
+            await context.bot.send_photo(
+                chat_id=chat_id,
+                photo=chosen["image_url"],
+                caption=caption,
+                reply_markup=keyboard,
+                parse_mode="Markdown"
+            )
+        else:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=caption,
+                reply_markup=keyboard,
+                parse_mode="Markdown"
+            )
+    except Exception as e:
+        print(f"Spawn error: {e}")
+
+# ─── COMMANDS ──────────────────────────────────────────────
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    db.get_user(user.id, user.username, user.first_name)
+    
+    welcome = (
+        f"🌸 **Welcome, {user.first_name}!**\n\n"
+        "I'm **Sinzhu Waifu Bot** — your ultimate anime waifu collector! 🎴\n\n"
+        "╔══════════════════════╗\n"
+        "       🎮 **SINZHU BOT GUIDE**\n"
+        "╚══════════════════════╝\n\n"
+        "🌟 **Rarity Tiers** (Highest → Lowest):\n"
+        "🌟 God Summon › ✨ Goddess › 🔮 Limited\n"
+        "💎 Premium › 🎐 Special › 💮 Exclusive\n"
+        "🪽 Celestial › 🟡 Legendary › 🟠 Rare\n"
+        "🔵 Medium › 🟢 Common\n\n"
+        "Choose an option below! 👇"
+    )
+    await update.message.reply_text(welcome, reply_markup=main_menu_keyboard(), parse_mode="Markdown")
+
+async def hunt_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.type == "private":
+        await update.message.reply_text("❌ Hunt only works in group chats!")
         return
-    if wid not in d["harem"]:
-        await update.message.reply_text("❌ Yeh waifu tumhare paas nahi!")
+    
+    user = update.effective_user
+    args = context.args
+    if not args:
+        await update.message.reply_text("Usage: `/hunt <waifu name>`", parse_mode="Markdown")
         return
-    w = waifus.get(wid, {})
-    price = SELL_PRICE.get(w.get("rarity", 1), 50)
-    d["harem"].remove(wid)
-    d["onex"] += price
-    if d.get("fav") == wid:
-        d["fav"] = None
+    
+    name = " ".join(args).strip()
+    group = db.get_group(update.effective_chat.id)
+    
+    if not group["current_waifu_id"]:
+        await update.message.reply_text("😴 No waifu has spawned yet! Wait for one...")
+        return
+    if group["current_waifu_claimed"]:
+        await update.message.reply_text("💨 Too slow! That waifu was already claimed.")
+        return
+    
+    conn = db.get_conn()
+    waifu = conn.execute("SELECT * FROM waifus WHERE id=?", (group["current_waifu_id"],)).fetchone()
+    conn.close()
+    
+    if not waifu:
+        await update.message.reply_text("❌ Waifu not found in database.")
+        return
+    
+    if name.lower() != waifu["name"].lower():
+        await update.message.reply_text(
+            f"❌ Wrong name! Hint: The waifu's name starts with **{waifu['name'][0]}**...",
+            parse_mode="Markdown"
+        )
+        return
+    
+    db.update_group(update.effective_chat.id, current_waifu_claimed=1)
+    db.get_user(user.id, user.username, user.first_name)
+    db.give_waifu_to_user(user.id, waifu["id"])
+    
+    rarity_data = RARITY_TIERS.get(waifu["rarity"], {})
+    bonus_onex = rarity_data.get("sell_price", 50) // 5
+    db.update_user(user.id, onex=db.get_user(user.id)["onex"] + bonus_onex)
+    
+    text = (
+        f"🎉 **{get_display_name(user)} caught {waifu['name']}!**\n\n"
+        f"⭐ Rarity: {waifu['rarity']}\n"
+        f"📺 Anime: {waifu['anime']}\n"
+        f"💰 Bonus: +{bonus_onex} Onex\n\n"
+        f"Use `/harem` to view your collection!"
+    )
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("🎴 View Harem", callback_data="harem_1"),
+            InlineKeyboardButton("💰 Balance", callback_data="balance"),
+        ]
+    ])
+    await update.message.reply_text(text, reply_markup=keyboard, parse_mode="Markdown")
+
+async def harem_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    db.get_user(user.id, user.username, user.first_name)
+    waifus = db.get_user_waifus(user.id)
+    
+    if not waifus:
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]])
+        await update.message.reply_text(
+            "💔 Your harem is empty! Go hunt some waifus in a group!",
+            reply_markup=kb
+        )
+        return
+    
+    page = 1
+    chunk, total_pages = paginate(waifus, page, WAIFU_PER_PAGE)
+    u_data = db.get_user(user.id)
+    
+    text = f"🎴 **{user.first_name}'s Harem** ({len(waifus)} waifus)\n\n"
+    for w in chunk:
+        fav_star = " ⭐" if u_data.get("favorite_waifu_id") == w["id"] else ""
+        text += f"• {w['rarity']} **{w['name']}** — {w['anime']}{fav_star}\n"
+    
     await update.message.reply_text(
-        f"💶 *{w.get('name','?')}* bech diya!\n+{price} Onex\n💰 Total: {d['onex']}",
+        text,
+        reply_markup=harem_keyboard(chunk, page, total_pages, user.id),
         parse_mode="Markdown"
     )
 
-
-# ══ /daily ══
-async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    d = get_user(u.id, u.first_name)
-    today = str(date.today())
-    if d["daily"] == today:
-        await update.message.reply_text("💎 Aaj ke Onex le liye! Kal aana.")
-        return
-    n = random.randint(100, 500)
-    d["onex"] += n
-    d["daily"] = today
-    await update.message.reply_text(
-        f"💎 *Daily Onex!*\n\n+{n} Onex\n💰 Total: {d['onex']}", parse_mode="Markdown"
-    )
-
-
-# ══ /pay ══
-async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    d = get_user(u.id, u.first_name)
-    if not update.message.reply_to_message:
-        await update.message.reply_text("❌ Reply karo + `/pay <amount>`", parse_mode="Markdown")
-        return
-    if not context.args:
-        await update.message.reply_text("❌ `/pay <amount>`", parse_mode="Markdown")
-        return
-    try:
-        n = int(context.args[0])
-        if n <= 0:
-            raise ValueError
-    except ValueError:
-        await update.message.reply_text("❌ Valid amount!")
-        return
-    if d["onex"] < n:
-        await update.message.reply_text(f"❌ Onex kam! Tumhare paas {d['onex']}.")
-        return
-    t = update.message.reply_to_message.from_user
-    if t.id == u.id:
-        await update.message.reply_text("❌ Khud ko nahi!")
-        return
-    td = get_user(t.id, t.first_name)
-    d["onex"] -= n
-    td["onex"] += n
-    mf = f"[{u.first_name}](tg://user?id={u.id})"
-    mt = f"[{t.first_name}](tg://user?id={t.id})"
-    await update.message.reply_text(
-        f"💰 {mf} → {mt}: {n} Onex\n💳 Tumhara: {d['onex']}", parse_mode="Markdown"
-    )
-
-
-# ══ /welkin ══
-async def welkin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    d = get_user(u.id, u.first_name)
-    today = str(date.today())
-    if d["welkin_d"] == today:
-        await update.message.reply_text("🗓 Aaj ka welkin le liya! Kal aana.")
-        return
-    n = random.randint(50, 150)
-    d["onex"] += n
-    d["welkin"] += 1
-    d["welkin_d"] = today
-    await update.message.reply_text(
-        f"🗓 *Welkin!*\n\n+{n} Onex\n+1 Welkin\n💰 Total: {d['onex']}", parse_mode="Markdown"
-    )
-
-
-# ══ /tesure ══
-async def tesure(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    d = get_user(u.id, u.first_name)
-    today = str(date.today())
-    if d["tesure"] == today:
-        await update.message.reply_text("🪅 Aaj ka treasure le liya! Kal aana.")
-        return
-    d["tesure"] = today
-    if random.random() < 0.1 and waifus:
-        wid = random.choice(list(waifus.keys()))
-        w = waifus[wid]
-        d["harem"].append(wid)
+async def daily_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    u = db.get_user(user.id, user.username, user.first_name)
+    today = date.today().isoformat()
+    
+    if u["daily_claim"] == today:
+        tomorrow = (date.today() + timedelta(days=1)).strftime("%d %b")
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="main_menu")]])
         await update.message.reply_text(
-            f"🪅 *Treasure!*\n\n🎉 Lucky! Free Waifu!\n🌸 {w['name']}", parse_mode="Markdown"
+            f"⏰ Already claimed today! Come back tomorrow ({tomorrow}).",
+            reply_markup=kb
         )
         return
-    n = random.randint(200, 1000)
-    d["onex"] += n
+    
+    reward = random.randint(200, 500)
+    db.update_user(user.id, onex=u["onex"]+reward, daily_claim=today)
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("💰 Check Balance", callback_data="balance"),
+         InlineKeyboardButton("🌟 Welkin", callback_data="welkin")]
+    ])
     await update.message.reply_text(
-        f"🪅 *Treasure!*\n\n+{n} Onex\n💰 Total: {d['onex']}", parse_mode="Markdown"
+        f"✅ **Daily Reward Claimed!**\n\n💰 +{reward} Onex\n💎 Balance: {u['onex']+reward} Onex",
+        reply_markup=kb, parse_mode="Markdown"
     )
 
-
-# ══ /tops ══
-async def tops(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not users:
-        await update.message.reply_text("Koi user nahi!")
+async def welkin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    u = db.get_user(user.id, user.username, user.first_name)
+    today = date.today().isoformat()
+    
+    if u["welkin_claim"] == today:
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="main_menu")]])
+        await update.message.reply_text("⏰ Welkin already claimed today! Come back tomorrow.", reply_markup=kb)
         return
-    sl = sorted(users.items(), key=lambda x: x[1]["onex"], reverse=True)[:10]
-    medals = ["🥇", "🥈", "🥉"] + ["🏅"] * 7
-    text = "🥇 **Top 10 Onex Users**\n\n"
-    for i, (uid, d) in enumerate(sl):
-        text += f"{medals[i]} **{d['name']}** — {d['onex']} Onex\n"
+    
+    reward = 300
+    db.update_user(user.id, onex=u["onex"]+reward, welkin_claim=today)
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("💰 Balance", callback_data="balance"),
+         InlineKeyboardButton("📦 Daily", callback_data="daily")]
+    ])
+    await update.message.reply_text(
+        f"🌟 **Welkin Reward!**\n\n💰 +{reward} Onex",
+        reply_markup=kb, parse_mode="Markdown"
+    )
+
+async def treasure_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    u = db.get_user(user.id, user.username, user.first_name)
+    
+    result = random.choices(
+        ["onex", "waifu", "nothing"],
+        weights=[50, 30, 20], k=1
+    )[0]
+    
+    if result == "onex":
+        amount = random.randint(100, 1000)
+        db.update_user(user.id, onex=u["onex"]+amount)
+        text = f"💎 **Treasure Opened!**\n\n🎁 You found **{amount} Onex**! Lucky!"
+    elif result == "waifu":
+        waifus = db.get_all_waifus()
+        if waifus:
+            w = random.choice(waifus)
+            db.give_waifu_to_user(user.id, w["id"])
+            text = f"💎 **Treasure Opened!**\n\n🎴 You found **{w['name']}** ({w['rarity']})!"
+        else:
+            text = "💎 **Treasure Opened!**\n\nThe chest was empty... 😢"
+    else:
+        text = "💎 **Treasure Opened!**\n\nBetter luck next time! The chest was empty. 😢"
+    
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔙 Menu", callback_data="main_menu")]
+    ])
+    await update.message.reply_text(text, reply_markup=kb, parse_mode="Markdown")
+
+async def hclaim_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    u = db.get_user(user.id, user.username, user.first_name)
+    today = date.today().isoformat()
+    
+    if u["hclaim_date"] == today:
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("🎴 View Harem", callback_data="harem_1")]])
+        await update.message.reply_text("⏰ Free waifu already claimed today!", reply_markup=kb)
+        return
+    
+    waifus = db.get_all_waifus()
+    if not waifus:
+        await update.message.reply_text("❌ No waifus in database yet!")
+        return
+    
+    common_waifus = [w for w in waifus if w["rarity"] in ["🟢 Common", "🔵 Medium", "🟠 Rare"]]
+    w = random.choice(common_waifus if common_waifus else waifus)
+    
+    db.give_waifu_to_user(user.id, w["id"])
+    db.update_user(user.id, hclaim_date=today)
+    
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🎴 View Harem", callback_data="harem_1"),
+         InlineKeyboardButton("🔙 Menu", callback_data="main_menu")]
+    ])
+    await update.message.reply_text(
+        f"🎁 **Free Daily Waifu!**\n\n🎴 {w['name']} ({w['rarity']}) added to your harem!",
+        reply_markup=kb, parse_mode="Markdown"
+    )
+
+async def onex_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    u = db.get_user(user.id, user.username, user.first_name)
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📦 Daily", callback_data="daily"),
+         InlineKeyboardButton("🛒 Shop", callback_data="shop_1")]
+    ])
+    await update.message.reply_text(
+        f"💰 **{user.first_name}'s Balance**\n\n💎 Onex: `{u['onex']}`",
+        reply_markup=kb, parse_mode="Markdown"
+    )
+
+async def pay_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    u = db.get_user(user.id, user.username, user.first_name)
+    
+    if not update.message.reply_to_message:
+        await update.message.reply_text("❌ Reply to someone's message to pay them!")
+        return
+    if not context.args:
+        await update.message.reply_text("Usage: `/pay <amount>` (reply to user)", parse_mode="Markdown")
+        return
+    
+    try:
+        amount = int(context.args[0])
+        assert amount > 0
+    except:
+        await update.message.reply_text("❌ Invalid amount!")
+        return
+    
+    target = update.message.reply_to_message.from_user
+    if target.id == user.id:
+        await update.message.reply_text("❌ Can't pay yourself!")
+        return
+    
+    if u["onex"] < amount:
+        await update.message.reply_text(f"❌ Insufficient Onex! You have {u['onex']}.")
+        return
+    
+    t_user = db.get_user(target.id, target.username, target.first_name)
+    db.update_user(user.id, onex=u["onex"]-amount)
+    db.update_user(target.id, onex=t_user["onex"]+amount)
+    
+    await update.message.reply_text(
+        f"✅ **Transfer Complete!**\n\n"
+        f"💸 {get_display_name(user)} → {get_display_name(target)}\n"
+        f"💰 Amount: {amount} Onex",
+        parse_mode="Markdown"
+    )
+
+async def shop_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    waifus = db.get_all_waifus()
+    page = 1
+    chunk, total_pages = paginate(waifus, page, WAIFU_PER_PAGE)
+    
+    if not waifus:
+        await update.message.reply_text("🛒 Shop is empty! Admin hasn't added waifus yet.")
+        return
+    
+    await update.message.reply_text(
+        f"🛒 **Waifu Shop** (Page {page}/{total_pages})\n\nSelect a waifu to buy:",
+        reply_markup=shop_keyboard(chunk, page, total_pages),
+        parse_mode="Markdown"
+    )
+
+async def rank_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    u = db.get_user(user.id, user.username, user.first_name)
+    top = db.get_top_collectors(1000)
+    
+    rank = next((i+1 for i, r in enumerate(top) if r["user_id"] == user.id), "N/A")
+    
+    await update.message.reply_text(
+        f"🏅 **{user.first_name}'s Rank**\n\n"
+        f"📊 Global Rank: #{rank}\n"
+        f"🎴 Waifus: {u['total_waifus']}\n"
+        f"💰 Onex: {u['onex']}",
+        reply_markup=rank_keyboard(),
+        parse_mode="Markdown"
+    )
+
+async def wpass_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    u = db.get_user(user.id, user.username, user.first_name)
+    waifus = db.get_user_waifus(user.id)
+    
+    rarity_counts = {}
+    for w in waifus:
+        rarity_counts[w["rarity"]] = rarity_counts.get(w["rarity"], 0) + 1
+    
+    text = f"📜 **{user.first_name}'s Waifu Pass**\n\n"
+    text += f"🎴 Total Waifus: {len(waifus)}\n"
+    text += f"💰 Onex: {u['onex']}\n\n"
+    text += "**By Rarity:**\n"
+    for rarity in RARITY_TIERS:
+        count = rarity_counts.get(rarity, 0)
+        if count > 0:
+            text += f"{rarity}: {count}\n"
+    
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🎴 View Harem", callback_data="harem_1"),
+         InlineKeyboardButton("🏅 Rank", callback_data="rank")]
+    ])
+    await update.message.reply_text(text, reply_markup=kb, parse_mode="Markdown")
+
+async def top_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    top = db.get_top_collectors(10)
+    text = "🏅 **Top 10 Waifu Collectors**\n\n"
+    medals = ["🥇","🥈","🥉"] + ["🔹"]*7
+    for i, u in enumerate(top):
+        name = f"@{u['username']}" if u["username"] else u["first_name"]
+        text += f"{medals[i]} {name} — {u['total_waifus']} waifus\n"
+    
+    await update.message.reply_text(text, reply_markup=top_keyboard("collectors"), parse_mode="Markdown")
+
+async def tops_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    top = db.get_top_rich(10)
+    text = "💸 **Top 10 Richest Users**\n\n"
+    medals = ["🥇","🥈","🥉"] + ["🔹"]*7
+    for i, u in enumerate(top):
+        name = f"@{u['username']}" if u["username"] else u["first_name"]
+        text += f"{medals[i]} {name} — {u['onex']} Onex\n"
+    
+    await update.message.reply_text(text, reply_markup=top_keyboard("rich"), parse_mode="Markdown")
+
+async def topgroups_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    groups = db.get_top_groups(10)
+    text = "🏆 **Top 10 Active Groups**\n\n"
+    for i, g in enumerate(groups, 1):
+        text += f"{i}. Chat `{g['chat_id']}` — {g['message_count']} messages\n"
+    
     await update.message.reply_text(text, parse_mode="Markdown")
 
-
-# ══ /slavetime ══
-async def slavetime(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    cid = update.effective_chat.id
-    if not is_admin(u.id):
-        await update.message.reply_text("❌ Sirf admin/sudo use kar sakta hai!")
-        return
+async def fav_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
     if not context.args:
-        cur = group_slavetime.get(cid, 15)
-        await update.message.reply_text(
-            f"🐣 Current: **{cur} messages**\nChange: `/slavetime 20`", parse_mode="Markdown"
-        )
+        await update.message.reply_text("Usage: `/fav <harem_id>`", parse_mode="Markdown")
         return
-    try:
-        n = int(context.args[0])
-        if n < 15:
-            await update.message.reply_text("❌ Minimum 15!")
-            return
-    except ValueError:
-        await update.message.reply_text("❌ Number daalo!")
-        return
-    group_slavetime[cid] = n
-    await update.message.reply_text(
-        f"🐣 Summon interval: **{n} messages** set ho gaya!", parse_mode="Markdown"
-    )
-
-
-# ══ ADMIN: /upload ══
-async def upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global next_waifu_id
-    u = update.effective_user
-    if not is_admin(u.id):
-        await update.message.reply_text("❌ Sirf admin use kar sakta hai!")
-        return
-    if not update.message.reply_to_message or not update.message.reply_to_message.photo:
-        await update.message.reply_text(
-            "❌ *Wrong format!*\n\nKisi *photo* ko reply karo:\n"
-            "`/upload muzan-kibutsuji Demon-slayer 3`\n\n"
-            "Rarity: 1🟢 2🔵 3🟠 4🟡 5🪽 6💮 7🎐 8💎 9🔮 10🔖 11✨ 12🌟",
-            parse_mode="Markdown"
-        )
-        return
-    if len(context.args) < 3:
-        await update.message.reply_text("❌ `/upload character-name anime-name rarity`", parse_mode="Markdown")
-        return
-    try:
-        rarity = int(context.args[-1])
-        if not 1 <= rarity <= 12:
-            raise ValueError
-        anime = context.args[-2].replace("-", " ").title()
-        name = " ".join(context.args[:-2]).replace("-", " ").title()
-    except ValueError:
-        await update.message.reply_text("❌ Rarity 1-12 ke beech honi chahiye!")
-        return
-    photo_id = update.message.reply_to_message.photo[-1].file_id
-    wid = next_waifu_id
-    next_waifu_id += 1
-    waifus[wid] = {"name": name, "anime": anime, "rarity": rarity, "photo_id": photo_id}
-    await update.message.reply_text(
-        f"✅ *Waifu uploaded!*\n\n"
-        f"| 🌸 ɴᴀᴍᴇ: {name}\n| 🆔 ɪᴅ: {wid}\n"
-        f"| 🎬 ᴀɴɪᴍᴇ: {anime}\n| 💎 ʀᴀʀɪᴛʏ: {RARITY.get(rarity,'?')}",
-        parse_mode="Markdown"
-    )
-
-
-# ══ ADMIN: /deleteWaifu ══
-async def delete_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    if not is_admin(u.id):
-        await update.message.reply_text("❌ Sirf admin use kar sakta hai!")
-        return
-    if not context.args:
-        await update.message.reply_text("❌ `/deleteWaifu <id>`", parse_mode="Markdown")
-        return
-    try:
-        wid = int(context.args[0])
-    except ValueError:
-        await update.message.reply_text("❌ Valid ID!")
-        return
-    if wid not in waifus:
-        await update.message.reply_text(f"❌ ID {wid} nahi mila!")
-        return
-    name = waifus[wid]["name"]
-    del waifus[wid]
-    for d in users.values():
-        d["harem"] = [x for x in d["harem"] if x != wid]
-        if d.get("fav") == wid:
-            d["fav"] = None
-    shop_list.pop(wid, None)
-    await update.message.reply_text(f"🗑️ *{name}* (ID: {wid}) delete ho gaya!", parse_mode="Markdown")
-
-
-# ══ ADMIN: /addSudo ══
-async def add_sudo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    if u.id not in ADMIN_IDS:
-        await update.message.reply_text("❌ Sirf main admin use kar sakta hai!")
-        return
-    if not update.message.reply_to_message:
-        await update.message.reply_text("❌ Kisi ke message ko reply karo!")
-        return
-    t = update.message.reply_to_message.from_user
-    sudo_users.add(t.id)
-    await update.message.reply_text(f"✅ *{t.first_name}* sudo ban gaya!", parse_mode="Markdown")
-
-
-# ══ ADMIN: /addsh ══
-async def addsh(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    if not is_admin(u.id):
-        await update.message.reply_text("❌ Sirf admin use kar sakta hai!")
-        return
-    if len(context.args) != 3:
-        await update.message.reply_text(
-            "❌ `/addsh <waifu_id> <price> <quantity>`\nExample: `/addsh 296 50000 100`",
-            parse_mode="Markdown"
-        )
-        return
-    try:
-        wid, price, qty = int(context.args[0]), int(context.args[1]), int(context.args[2])
-    except ValueError:
-        await update.message.reply_text("❌ Sahi numbers daalo!")
-        return
-    if wid not in waifus:
-        await update.message.reply_text(f"❌ ID {wid} ka waifu nahi!")
-        return
-    shop_list[wid] = {"price": price, "qty": qty}
-    w = waifus[wid]
-    await update.message.reply_text(
-        f"✅ *{w['name']}* shop mein add!\n\n| 💰 Price: {price} Onex\n| 📦 Qty: {qty}",
-        parse_mode="Markdown"
-    )
-
-
-# ══ ADMIN: /Rshop ══
-async def rshop(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    if not is_admin(u.id):
-        await update.message.reply_text("❌ Sirf admin use kar sakta hai!")
-        return
-    if not context.args:
-        await update.message.reply_text("❌ `/Rshop <waifu_id>`", parse_mode="Markdown")
-        return
-    try:
-        wid = int(context.args[0])
-    except ValueError:
-        await update.message.reply_text("❌ Valid ID!")
-        return
-    if wid not in shop_list:
-        await update.message.reply_text(f"❌ ID {wid} shop mein nahi!")
-        return
-    del shop_list[wid]
-    w = waifus.get(wid, {})
-    await update.message.reply_text(
-        f"🗑️ *{w.get('name', str(wid))}* shop se remove ho gaya!", parse_mode="Markdown"
-    )
-
-
-# ══ ADMIN: /setphoto ══
-async def setphoto(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    if not is_admin(u.id):
-        await update.message.reply_text("❌ Sirf admin use kar sakta hai!")
-        return
-    if not context.args:
-        await update.message.reply_text(
-            f"📷 Current:\n`{bot_settings['photo']}`\n\nChange: `/setphoto <url>`",
-            parse_mode="Markdown"
-        )
-        return
-    bot_settings["photo"] = context.args[0]
-    await update.message.reply_text("✅ Start photo change ho gaya!")
-
-
-# ══ ADMIN: /setcaption ══
-async def setcaption(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    if not is_admin(u.id):
-        await update.message.reply_text("❌ Sirf admin use kar sakta hai!")
-        return
-    if not context.args:
-        await update.message.reply_text(
-            "⚠️ `/setcaption Naya caption {name} se`",
-            parse_mode="Markdown"
-        )
-        return
-    bot_settings["caption"] = " ".join(context.args)
-    await update.message.reply_text("✅ Caption change ho gaya!")
-
-
-# ══ ADMIN: /setlink ══
-async def setlink(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    if not is_admin(u.id):
-        await update.message.reply_text("❌ Sirf admin use kar sakta hai!")
-        return
-    keys = {"group": "link_group", "owner": "link_owner", "channel": "link_channel", "kidnap": "link_kidnap"}
-    if len(context.args) < 2:
-        current = "\n".join([f"`{k}` → {bot_settings[v]}" for k, v in keys.items()])
-        await update.message.reply_text(
-            f"🔗 *Current Links:*\n\n{current}\n\n"
-            "Change: `/setlink group https://t.me/...`",
-            parse_mode="Markdown"
-        )
-        return
-    btn_name = context.args[0].lower()
-    if btn_name not in keys:
-        await update.message.reply_text("❌ Valid: `group` `owner` `channel` `kidnap`", parse_mode="Markdown")
-        return
-    bot_settings[keys[btn_name]] = context.args[1]
-    await update.message.reply_text(f"✅ `{btn_name}` link update ho gaya!", parse_mode="Markdown")
-
-
-# ══ ADMIN: /addOnex ══
-async def add_onex(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    if not is_admin(u.id):
-        await update.message.reply_text("❌ Sirf admin!")
-        return
-    if not update.message.reply_to_message or not context.args:
-        await update.message.reply_text("❌ Reply karo + `/addOnex <amount>`", parse_mode="Markdown")
-        return
-    try:
-        n = int(context.args[0])
-    except ValueError:
-        await update.message.reply_text("❌ Valid number!")
-        return
-    t = update.message.reply_to_message.from_user
-    td = get_user(t.id, t.first_name)
-    td["onex"] += n
-    await update.message.reply_text(
-        f"✅ *{t.first_name}* ko {n} Onex diya! Total: {td['onex']}", parse_mode="Markdown"
-    )
-
-
-# ══ ADMIN: /removeOnex ══
-async def remove_onex(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    u = update.effective_user
-    if not is_admin(u.id):
-        await update.message.reply_text("❌ Sirf admin!")
-        return
-    if not update.message.reply_to_message or not context.args:
-        await update.message.reply_text("❌ Reply karo + `/removeOnex <amount>`", parse_mode="Markdown")
-        return
-    try:
-        n = int(context.args[0])
-    except ValueError:
-        await update.message.reply_text("❌ Valid number!")
-        return
-    t = update.message.reply_to_message.from_user
-    td = get_user(t.id, t.first_name)
-    td["onex"] = max(0, td["onex"] - n)
-    await update.message.reply_text(
-        f"✅ *{t.first_name}* se {n} Onex hataya! Total: {td['onex']}", parse_mode="Markdown"
-    )
-
-
-# ══ APP BUILD ══
-app = ApplicationBuilder().token(TOKEN).build()
-
-app.add_handler(CommandHandler("start",       start))
-app.add_handler(CommandHandler("hunt",        hunt))
-app.add_handler(CommandHandler("fav",         fav))
-app.add_handler(CommandHandler("harem",       harem))
-app.add_handler(CommandHandler("wpass",       wpass))
-app.add_handler(CommandHandler("wpss",        wpass))
-app.add_handler(CommandHandler("shop",        shop))
-app.add_handler(CommandHandler("gift",        gift))
-app.add_handler(CommandHandler("rank",        rank_cmd))
-app.add_handler(CommandHandler("hclaim",      hclaim))
-app.add_handler(CommandHandler("top",         top))
-app.add_handler(CommandHandler("topgroups",   topgroups))
-app.add_handler(CommandHandler("onex",        onex))
-app.add_handler(CommandHandler("check",       check))
-app.add_handler(CommandHandler("wsell",       wsell))
-app.add_handler(CommandHandler("daily",       daily))
-app.add_handler(CommandHandler("pay",         pay))
-app.add_handler(CommandHandler("welkin",      welkin))
-app.add_handler(CommandHandler("tesure",      tesure))
-app.add_handler(CommandHandler("tops",        tops))
-app.add_handler(CommandHandler("slavetime",   slavetime))
-app.add_handler(CommandHandler("ChatOn",      chaton))
-app.add_handler(CommandHandler("chaton",      chaton))
-app.add_handler(CommandHandler("ChatOff",     chatoff))
-app.add_handler(CommandHandler("chatoff",     chatoff))
-app.add_handler(CommandHandler("broadcast",   broadcast))
-app.add_handler(CommandHandler("bcast",       broadcast))
-app.add_handler(CommandHandler("upload",      upload))
-app.add_handler(CommandHandler("deleteWaifu", delete_waifu))
-app.add_handler(CommandHandler("addSudo",     add_sudo))
-app.add_handler(CommandHandler("addsh",       addsh))
-app.add_handler(CommandHandler("Rshop",       rshop))
-app.add_handler(CommandHandler("setphoto",    setphoto))
-app.add_handler(CommandHandler("setcaption",  setcaption))
-app.add_handler(CommandHandler("setlink",     setlink))
-app.add_handler(CommandHandler("addOnex",     add_onex))
-app.add_handler(CommandHandler("removeOnex",  remove_onex))
-app.add_handler(CallbackQueryHandler(harem_cb,    pattern=r"^hr_"))
-app.add_handler(CallbackQueryHandler(shop_nav_cb, pattern=r"^snav_"))
-app.add_handler(CallbackQueryHandler(shop_buy_cb, pattern=r"^sbuy_"))
-app.add_handler(CallbackQueryHandler(game_info,   pattern="^game_info$"))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_message))
-
-print("✅ Sinzhu Waifu Bot chal raha hai...")
-app.run_polling()
     
+    try:
+        uw_id = int(context.args[0])
+    except:
+        await update.message.reply_text("❌ Invalid ID!")
+        return
+    
+    waifu = db.get_waifu_by_uw_id(uw_id)
+    if not waifu or waifu["user_id"] != user.id:
+        await update.message.reply_text("❌ Waifu not found in your harem!")
+        return
+    
+    db.update_user(user.id, favorite_waifu_id=uw_id)
+    kb = InlineKeyboardMarkup([[InlineKeyboardButton("🎴 View Harem", callback_data="harem_1")]])
+    await update.message.reply_text(
+        f"⭐ **{waifu['name']}** set as your favorite waifu!",
+        reply_markup=kb, parse_mode="Markdown"
+    )
+
+async def check_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("Usage: `/check <harem_id>`", parse_mode="Markdown")
+        return
+    try:
+        uw_id = int(context.args[0])
+    except:
+        await update.message.reply_text("❌ Invalid ID!")
+        return
+    
+    waifu = db.get_waifu_by_uw_id(uw_id)
+    if not waifu:
+        await update.message.reply_text("❌ Waifu not found!")
+        return
+    
+    u = db.get_user(update.effective_user.id)
+    rarity_data = RARITY_TIERS.get(waifu["rarity"], {})
+    sell_price = rarity_data.get("sell_price", 50)
+    
+    text = (
+        f"🎴 **Waifu Details**\n\n"
+        f"👤 Name: {waifu['name']}\n"
+        f"📺 Anime: {waifu['anime']}\n"
+        f"⭐ Rarity: {waifu['rarity']}\n"
+        f"💰 Sell Price: {sell_price} Onex\n"
+        f"🆔 Harem ID: {uw_id}"
+    )
+        await query.edit_message_text(
+            text, reply_markup=waifu_detail_keyboard(uw_id, u.get("favorite_waifu_id")), parse_mode="Markdown"
+        )
+    
+    elif data.startswith("fav_"):
+        uw_id = int(data.split("_")[1])
+        waifu = db.get_waifu_by_uw_id(uw_id)
+        u = db.get_user(user.id)
+        if not waifu or waifu["user_id"] != user.id:
+            await query.answer("❌ Not your waifu!", show_alert=True)
+            return
+        new_fav = None if u.get("favorite_waifu_id") == uw_id else uw_id
+        db.update_user(user.id, favorite_waifu_id=new_fav)
+        msg = f"⭐ {waifu['name']} {'set as fav' if new_fav else 'removed from fav'}!"
+        await query.answer(msg, show_alert=True)
+        await query.edit_message_reply_markup(
+            reply_markup=waifu_detail_keyboard(uw_id, new_fav)
+        )
+    
+    elif data.startswith("sell_confirm_"):
+        uw_id = int(data.split("_")[2])
+        waifu = db.get_waifu_by_uw_id(uw_id)
+        if not waifu or waifu["user_id"] != user.id:
+            await query.answer("❌ Not your waifu!", show_alert=True)
+            return
+        sell_price = RARITY_TIERS.get(waifu["rarity"], {}).get("sell_price", 50)
+        await query.edit_message_text(
+            f"💸 Sell **{waifu['name']}** for {sell_price} Onex?",
+            reply_markup=sell_confirm_keyboard(uw_id, sell_price),
+            parse_mode="Markdown"
+        )
+    
+    elif data.startswith("sell_do_"):
+        uw_id = int(data.split("_")[2])
+        waifu = db.get_waifu_by_uw_id(uw_id)
+        if not waifu or waifu["user_id"] != user.id:
+            await query.answer("❌ Not your waifu!", show_alert=True)
+            return
+        sell_price = RARITY_TIERS.get(waifu["rarity"], {}).get("sell_price", 50)
+        db.remove_user_waifu(uw_id, user.id)
+        u = db.get_user(user.id)
+        db.update_user(user.id, onex=u["onex"]+sell_price)
+        await query.edit_message_text(
+            f"✅ **Sold {waifu['name']}** for {sell_price} Onex!\n💎 Balance: {u['onex']+sell_price} Onex",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🎴 Harem", callback_data="harem_1"),
+                 InlineKeyboardButton("🔙 Menu", callback_data="main_menu")]
+            ]), parse_mode="Markdown"
+        )
+    
+    elif data.startswith("shop_"):
+        page = int(data.split("_")[1])
+        waifus = db.get_all_waifus()
+        chunk, total_pages = paginate(waifus, page, WAIFU_PER_PAGE)
+        await query.edit_message_text(
+            f"🛒 **Waifu Shop** (Page {page}/{total_pages})\nSelect a waifu to buy:",
+            reply_markup=shop_keyboard(chunk, page, total_pages),
+            parse_mode="Markdown"
+        )
+    
+    elif data.startswith("buy_confirm_"):
+        wid = int(data.split("_")[2])
+        conn = db.get_conn()
+        w = conn.execute("SELECT * FROM waifus WHERE id=?", (wid,)).fetchone()
+        conn.close()
+        if not w:
+            await query.answer("❌ Waifu not found!", show_alert=True)
+            return
+        price = RARITY_TIERS.get(w["rarity"], {}).get("buy_price", 1000)
+        await query.edit_message_text(
+            f"🛒 Buy **{w['name']}** ({w['rarity']}) for {price} Onex?",
+            reply_markup=buy_confirm_keyboard(wid, price),
+            parse_mode="Markdown"
+        )
+    
+    elif data.startswith("buy_do_"):
+        wid = int(data.split("_")[2])
+        conn = db.get_conn()
+        w = conn.execute("SELECT * FROM waifus WHERE id=?", (wid,)).fetchone()
+        conn.close()
+        if not w:
+            await query.answer("❌ Waifu not found!", show_alert=True)
+            return
+        u = db.get_user(user.id)
+        price = RARITY_TIERS.get(w["rarity"], {}).get("buy_price", 1000)
+        if u["onex"] < price:
+            await query.answer(f"❌ Need {price} Onex! You have {u['onex']}.", show_alert=True)
+            return
+        db.update_user(user.id, onex=u["onex"]-price)
+        db.give_waifu_to_user(user.id, wid)
+        await query.edit_message_text(
+            f"✅ **Bought {w['name']}!**\n💎 Remaining: {u['onex']-price} Onex",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🎴 Harem", callback_data="harem_1"),
+                 InlineKeyboardButton("🛒 Shop", callback_data="shop_1")]
+            ]), parse_mode="Markdown"
+        )
+    
+    elif data == "top":
+        top = db.get_top_collectors(10)
+        text = "🏅 **Top 10 Collectors**\n\n"
+        medals = ["🥇","🥈","🥉"] + ["🔹"]*7
+        for i, u in enumerate(top):
+            name = f"@{u['username']}" if u["username"] else u["first_name"]
+            text += f"{medals[i]} {name} — {u['total_waifus']} waifus\n"
+        await query.edit_message_text(text, reply_markup=top_keyboard("collectors"), parse_mode="Markdown")
+    
+    elif data == "tops":
+        top = db.get_top_rich(10)
+        text = "💸 **Top 10 Richest**\n\n"
+        medals = ["🥇","🥈","🥉"] + ["🔹"]*7
+        for i, u in enumerate(top):
+            name = f"@{u['username']}" if u["username"] else u["first_name"]
+            text += f"{medals[i]} {name} — {u['onex']} Onex\n"
+        await query.edit_message_text(text, reply_markup=top_keyboard("rich"), parse_mode="Markdown")
+    
+    elif data == "rank":
+        u = db.get_user(user.id)
+        top = db.get_top_collectors(1000)
+        rank = next((i+1 for i, r in enumerate(top) if r["user_id"] == user.id), "N/A")
+        await query.edit_message_text(
+            f"🏅 **{user.first_name}'s Rank**\n\n📊 Rank: #{rank}\n🎴 Waifus: {u['total_waifus']}\n💰 Onex: {u['onex']}",
+            reply_markup=rank_keyboard(), parse_mode="Markdown"
+        )
+    
+    elif data == "wpass":
+        u = db.get_user(user.id)
+        waifus = db.get_user_waifus(user.id)
+        rarity_counts = {}
+        for w in waifus:
+            rarity_counts[w["rarity"]] = rarity_counts.get(w["rarity"], 0) + 1
+        text = f"📜 **{user.first_name}'s Waifu Pass**\n\n🎴 Total: {len(waifus)}\n💰 Onex: {u['onex']}\n\n"
+        for rarity in RARITY_TIERS:
+            c = rarity_counts.get(rarity, 0)
+            if c:
+                text += f"{rarity}: {c}\n"
+        await query.edit_message_text(
+            text, reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🎴 Harem", callback_data="harem_1"),
+                 InlineKeyboardButton("🔙 Menu", callback_data="main_menu")]
+            ]), parse_mode="Markdown"
+        )
+    
+    elif data.startswith("quick_hunt_"):
+        wid = int(data.split("_")[2])
+        if update.effective_chat.type == "private":
+            await query.answer("❌ Hunting only works in groups!", show_alert=True)
+            return
+        group = db.get_group(update.effective_chat.id)
+        if group["current_waifu_claimed"]:
+            await query.answer("💨 Already claimed!", show_alert=True)
+            return
+        if group["current_waifu_id"] != wid:
+            await query.answer("❌ This waifu is no longer available!", show_alert=True)
+            return
+        db.update_group(update.effective_chat.id, current_waifu_claimed=1)
+        db.get_user(user.id, user.username, user.first_name)
+        db.give_waifu_to_user(user.id, wid)
+        conn = db.get_conn()
+        w = conn.execute("SELECT * FROM waifus WHERE id=?", (wid,)).fetchone()
+        conn.close()
+        wname = w["name"] if w else "Unknown"
+        await query.edit_message_caption(
+            caption=f"✅ **{get_display_name(user)} claimed {wname}!** 🎉\n\nUse /harem to view your collection.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🎴 View Harem", callback_data="harem_1")]
+            ]),
+            parse_mode="Markdown"
+        )
+    
+    elif data == "chat_on":
+        db.update_group(update.effective_chat.id, active_chat_mode=1)
+        await query.edit_message_text(
+            "💬 **Anime Chat Mode ON!** 🌸",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("💬 Chat Off", callback_data="chat_off")]])
+        )
+    
+    elif data == "chat_off":
+        db.update_group(update.effective_chat.id, active_chat_mode=0)
+        await query.edit_message_text(
+            "💬 **Anime Chat Mode OFF.** 😴",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("💬 Chat On", callback_data="chat_on")]])
+        )
+
+# ─── MAIN ──────────────────────────────────────────────────
+
+def main():
+    db.init_db()
+    db.seed_waifus()
+    
+    app = Application.builder().token(BOT_TOKEN).build()
+    
+    # Commands
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("hunt", hunt_cmd))
+    app.add_handler(CommandHandler("harem", harem_cmd))
+    app.add_handler(CommandHandler("hclaim", hclaim_cmd))
+    app.add_handler(CommandHandler("fav", fav_cmd))
+    app.add_handler(CommandHandler("check", check_cmd))
+    app.add_handler(CommandHandler("wsell", wsell_cmd))
+    app.add_handler(CommandHandler("gift", gift_cmd))
+    app.add_handler(CommandHandler("daily", daily_cmd))
+    app.add_handler(CommandHandler("welkin", welkin_cmd))
+    app.add_handler(CommandHandler("tesure", treasure_cmd))
+    app.add_handler(CommandHandler("onex", onex_cmd))
+    app.add_handler(CommandHandler("pay", pay_cmd))
+    app.add_handler(CommandHandler("shop", shop_cmd))
+    app.add_handler(CommandHandler("rank", rank_cmd))
+    app.add_handler(CommandHandler("wpass", wpass_cmd))
+    app.add_handler(CommandHandler("top", top_cmd))
+    app.add_handler(CommandHandler("tops", tops_cmd))
+    app.add_handler(CommandHandler("topgroups", topgroups_cmd))
+    app.add_handler(CommandHandler("ChatOn", chaton_cmd))
+    app.add_handler(CommandHandler("ChatOff", chatoff_cmd))
+    app.add_handler(CommandHandler("bcast", bcast_cmd))
+    app.add_handler(CommandHandler("admin", adm.admin_panel))
+    
+    # Callbacks & Messages
+    app.add_handler(CallbackQueryHandler(handle_callback))
+    app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_message))
+    
+    print("🤖 Sinzhu Waifu Bot started!")
+    app.run_polling(drop_pending_updates=True)
+
+if __name__ == "__main__":
+    main()
